@@ -1,0 +1,28 @@
+@UsersAPI_HostAddress = https://localhost:7243
+@GamesAPI_HostAddress = https://localhost:7243
+@OrdersAPI_HostAddress = https://localhost:7243
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJPUkRFUlMtQVBJIiwidXNlcl9pZCI6Ik9SREVSUy1BUEkiLCJ1c2VyX2VtYWlsIjoib3JkZXJzLWFwaUBnbWFpbC5jb20iLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiVEVDSCBBQ0NPVU5UIC0gT1JERVJTIEFQSSIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IlVzZXIiLCJleHAiOjI1MzQwMjMwMDgwMCwiaXNzIjoiRkNHLlVzZXJzIn0.Ltr8iKYVxbaotG3u8DXQuAU7kTibf2_RjlAqANcIk6I
+
+### Login (POST) - para gerar o token
+POST {{UsersAPI_HostAddress}}/auth/login
+Content-Type: application/json
+{
+  "userId": "admin",
+  "password": "Password1*"
+}
+
+###
+### GET Users (com Bearer Token)
+GET {{UsersAPI_HostAddress}}/users
+Authorization: Bearer {{access_token}}
+Accept: text/plain
+
+###
+GET {{GamesAPI_HostAddress}}/games/1
+Authorization: Bearer {{access_token}}
+Accept: text/plain
+
+###
+GET {{OrdersAPI_HostAddress}}/v2/orders/1
+Authorization: Bearer {{access_token}}
+Accept: text/plain
