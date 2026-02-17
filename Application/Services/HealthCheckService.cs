@@ -49,17 +49,28 @@ namespace Application.Services
 
             // #OCP - Descobre automaticamente todos os IHealthCheck registrados no DI
             // Novo health check? Só precisa implementar IHealthCheck e registrar no DI!
+
+            _logger.LogInformation("Starting health checks for {Count} components", _healthChecks.Count());
+
             var tasks = _healthChecks
                 .Select(async check =>
                 {
                     try
                     {
+                        _logger.LogInformation("Checking health of component: {ComponentName}", check.ComponentName);
                         var result = await check.CheckHealthAsync();
+                        _logger.LogInformation(
+                            "Health check completed for {ComponentName}: Status={Status}, ResponseTime={ResponseTime}ms",
+                            check.ComponentName,
+                            result.Status,
+                            result.ResponseTimeMs);
                         return new { check.ComponentName, Health = result };
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Health check failed for component: {ComponentName}", check.ComponentName);
+                        _logger.LogError(ex, "Health check FAILED for component: {ComponentName} - {ErrorMessage}", 
+                            check.ComponentName, 
+                            ex.Message);
                         return new
                         {
                             check.ComponentName,

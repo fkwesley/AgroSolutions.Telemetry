@@ -43,7 +43,8 @@ public static class DependencyInjectionConfiguration
         // 2. Registrar aqui: builder.Services.AddScoped<IHealthCheck, MeuNovoHealthCheck>()
         // 3. HealthCheckService descobre automaticamente via IEnumerable<IHealthCheck>
         builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-        builder.Services.AddScoped<IHealthCheck, RabbitMQHealthCheck>();
+        builder.Services.AddScoped<IHealthCheck, CosmosDBHealthCheck>();
+        builder.Services.AddScoped<IHealthCheck, ServiceBusHealthCheck>();
         builder.Services.AddScoped<IHealthCheck, ElasticsearchHealthCheck>();
         builder.Services.AddScoped<IHealthCheck, SystemHealthCheck>();
 

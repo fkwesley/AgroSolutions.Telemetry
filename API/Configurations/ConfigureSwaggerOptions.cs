@@ -2,42 +2,25 @@ using Asp.Versioning.ApiExplorer;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Reflection;
 
 namespace API.Configurations
 {
     /// <summary>
-    /// ConfiguraÁ„o DIN¬MICA do Swagger para suporte a m˙ltiplas versıes de API.
+    /// DYNAMIC Swagger configuration for multi-version API support.
     /// 
-    /// ?? OBJETIVO:
-    /// - Detecta AUTOMATICAMENTE todas as versıes da API (v1, v2, v3...) baseado nos controllers
-    /// - Cria um documento Swagger separado para cada vers„o descoberta
-    /// - Marca automaticamente versıes deprecated na documentaÁ„o
-    /// - Adiciona metadados especÌficos para cada vers„o
+    /// üéØ OBJECTIVE:
+    /// - AUTOMATICALLY detects all API versions (v1, v2, v3...) based on controllers
+    /// - Creates a separate Swagger document for each discovered version
+    /// - Automatically marks deprecated versions in documentation
+    /// - Adds version-specific metadata
     /// 
-    /// ?? POR QUE … NECESS¡RIO:
-    /// Sem esta classe, vocÍ teria que configurar MANUALMENTE cada vers„o no Program.cs:
-    ///   c.SwaggerDoc("v1", new OpenApiInfo { Title = "...", Version = "v1" });
-    ///   c.SwaggerDoc("v2", new OpenApiInfo { Title = "...", Version = "v2" });
-    ///   c.SwaggerDoc("v3", new OpenApiInfo { Title = "...", Version = "v3" });
-    ///   
-    /// Com esta classe:
-    /// - Ao criar OrdersV3Controller com [ApiVersion("3.0")], o Swagger detecta automaticamente
-    /// - N„o È necess·rio modificar Program.cs para adicionar novas versıes
-    /// - MantÈm o cÛdigo DRY (Don't Repeat Yourself)
+    /// üìò WHY IT'S NECESSARY:
+    /// Without this class, you would have to MANUALLY configure each version in Program.cs
     /// 
-    /// ?? COMO FUNCIONA:
-    /// 1. IApiVersionDescriptionProvider descobre todas as versıes atravÈs dos atributos [ApiVersion] nos controllers
-    /// 2. Para cada vers„o encontrada, cria um documento Swagger com metadados especÌficos
-    /// 3. Verifica se a vers„o est· marcada como Deprecated e adiciona aviso na descriÁ„o
-    /// 4. Gera dropdown no Swagger UI: "FCG.Orders.API V1", "FCG.Orders.API V2", etc
-    /// 
-    /// ?? REGISTRADO EM:
-    /// Program.cs ? builder.Services.ConfigureOptions&lt;ConfigureSwaggerOptions&gt;();
-    /// 
-    /// ?? SEPARA«√O DE RESPONSABILIDADES:
-    /// - Program.cs: ConfiguraÁıes EST¡TICAS (JWT, XML Comments, Security global)
-    /// - ConfigureSwaggerOptions.cs: ConfiguraÁıes DIN¬MICAS (versıes da API)
+    /// üîß HOW IT WORKS:
+    /// 1. IApiVersionDescriptionProvider discovers all versions through [ApiVersion] attributes
+    /// 2. For each version found, creates a Swagger document with specific metadata
+    /// 3. Checks if version is marked as Deprecated and adds warning
     /// </summary>
     public class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
     {
@@ -49,17 +32,12 @@ namespace API.Configurations
         }
 
         /// <summary>
-        /// Configura o Swagger para cada vers„o da API descoberta automaticamente.
-        /// Este mÈtodo È chamado automaticamente pelo framework durante a inicializaÁ„o.
+        /// Configures Swagger for each automatically discovered API version.
         /// </summary>
         public void Configure(SwaggerGenOptions options)
         {
-            // Descobre todas as versıes da API atravÈs dos atributos [ApiVersion] nos controllers
-            // Ex: [ApiVersion("1.0")], [ApiVersion("2.0", Deprecated = true)]
             foreach (var description in _provider.ApiVersionDescriptions)
             {
-                // Cria um documento Swagger separado para cada vers„o
-                // GroupName = "v1", "v2", "v3", etc
                 options.SwaggerDoc(
                     description.GroupName,
                     CreateInfoForApiVersion(description));
@@ -67,17 +45,15 @@ namespace API.Configurations
         }
 
         /// <summary>
-        /// Cria as informaÁıes de metadados para uma vers„o especÌfica da API.
+        /// Creates metadata information for a specific API version.
         /// </summary>
-        /// <param name="description">DescriÁ„o da vers„o fornecida pelo IApiVersionDescriptionProvider</param>
-        /// <returns>Objeto OpenApiInfo com tÌtulo, vers„o, descriÁ„o e contato</returns>
         private static OpenApiInfo CreateInfoForApiVersion(ApiVersionDescription description)
         {
             var info = new OpenApiInfo
             {
                 Title = "AgroSolutions.Telemetry.API",
                 Version = description.ApiVersion.ToString(),
-                Description = "API para recebimento e processamento de dados de telemetria de sensores tÈrmicos de campo agrÌcola.",
+                Description = "API for receiving and processing telemetry data from agricultural field thermal sensors.",
                 Contact = new OpenApiContact
                 {
                     Name = "AgroSolutions Team",
@@ -85,11 +61,9 @@ namespace API.Configurations
                 }
             };
 
-            // Adiciona aviso visual para versıes marcadas como deprecated
-            // Exemplo: v1 com [ApiVersion("1.0", Deprecated = true)]
             if (description.IsDeprecated)
             {
-                info.Description += " - ?? This API version has been deprecated.";
+                info.Description += " - ‚ö†Ô∏è This API version has been deprecated.";
             }
 
             return info;

@@ -3,26 +3,26 @@ using System.ComponentModel.DataAnnotations;
 namespace Application.DTO.FieldMeasurement
 {
     /// <summary>
-    /// DTO para criação de nova medição de campo.
+    /// DTO for creating a new field measurement.
     /// </summary>
     public class AddFieldMeasurementRequest
     {
-        [Required(ErrorMessage = "FieldId é obrigatório.")]
+        [Required(ErrorMessage = "FieldId is required.")]
         public Guid FieldId { get; set; }
 
-        [Required(ErrorMessage = "Umidade do solo é obrigatória.")]
-        [Range(0, 100, ErrorMessage = "Umidade deve estar entre 0 e 100.")]
+        [Required(ErrorMessage = "Soil moisture is required.")]
+        [Range(0, 100, ErrorMessage = "Soil moisture must be between 0 and 100.")]
         public decimal SoilMoisture { get; set; }
 
-        [Required(ErrorMessage = "Temperatura do ar é obrigatória.")]
-        [Range(-50, 80, ErrorMessage = "Temperatura deve estar entre -50 e 80.")]
+        [Required(ErrorMessage = "Air temperature is required.")]
+        [Range(-50, 80, ErrorMessage = "Air temperature must be between -50 and 80.")]
         public decimal AirTemperature { get; set; }
 
-        [Required(ErrorMessage = "Precipitação é obrigatória.")]
-        [Range(0, double.MaxValue, ErrorMessage = "Precipitação não pode ser negativa.")]
+        [Required(ErrorMessage = "Precipitation is required.")]
+        [Range(0, double.MaxValue, ErrorMessage = "Precipitation cannot be negative.")]
         public decimal Precipitation { get; set; }
 
-        [Required(ErrorMessage = "Data de coleta é obrigatória.")]
+        [Required(ErrorMessage = "Collection date is required.")]
         public DateTime CollectedAt { get; set; }
         public string? UserId { get; set; }
     }

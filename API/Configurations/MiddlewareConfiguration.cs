@@ -8,7 +8,7 @@ public static class MiddlewareConfiguration
     {
         app.UseHttpsRedirection();
 
-        // Security Headers - Deve vir cedo no pipeline
+        // Security Headers - Must come early in pipeline
         app.UseMiddleware<SecurityHeadersMiddleware>();
 
         // Cache Headers
@@ -19,10 +19,11 @@ public static class MiddlewareConfiguration
         app.UseAuthorization();
         app.MapControllers();
 
-        // Request Logging - Após autenticação para capturar user info
+        // Request Logging - Handles CorrelationId, logs requests/responses
+        // After authentication to capture user info
         app.UseMiddleware<RequestLoggingMiddleware>();
 
-        // Error Handling - Por último para capturar todos os erros
+        // Error Handling - Last to catch all errors
         app.UseMiddleware<ErrorHandlingMiddleware>();
 
         return app;

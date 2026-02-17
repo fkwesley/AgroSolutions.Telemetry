@@ -3,7 +3,7 @@ using Application.DTO.Common;
 namespace Application.DTO.FieldMeasurement
 {
     /// <summary>
-    /// DTO de resposta para medições de campo.
+    /// Response DTO for field measurements.
     /// </summary>
     public class FieldMeasurementResponse : IHateoasResource
     {

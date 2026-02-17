@@ -1,4 +1,5 @@
 using Application.DTO.Common;
+using System.Diagnostics;
 
 namespace Application.DTO.Health
 {
@@ -36,6 +37,7 @@ namespace Application.DTO.Health
     /// <summary>
     /// Individual component health status
     /// </summary>
+    [DebuggerDisplay("Status: {Status}, ResponseTime: {ResponseTimeMs}ms, Description: {Description}")]
     public class ComponentHealth
     {
         /// <summary>

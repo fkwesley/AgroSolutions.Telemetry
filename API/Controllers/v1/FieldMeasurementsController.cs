@@ -31,10 +31,10 @@ namespace API.Controllers.v1
 
         #region GET
         /// <summary>
-        /// Retorna uma medição específica por ID.
+        /// Returns a specific measurement by ID.
         /// </summary>
-        /// <param name="id">ID da medição</param>
-        /// <returns>Objeto FieldMeasurementResponse com links HATEOAS</returns>
+        /// <param name="id">Measurement ID</param>
+        /// <returns>FieldMeasurementResponse object with HATEOAS links</returns>
         [HttpGet("{id}", Name = "GetFieldMeasurementById")]
         [ProducesResponseType(typeof(FieldMeasurementResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
@@ -62,16 +62,20 @@ namespace API.Controllers.v1
         public async Task<IActionResult> GetByFieldId(Guid fieldId)
         {
             var measurements = await _service.GetMeasurementsByFieldIdAsync(fieldId);
+
+            // Add HATEOAS links to each measurement
+            HateoasHelper.AddLinksToMeasurements(measurements, Url, "1.0");
+
             return Ok(measurements);
         }
 
         /// <summary>
-        /// Retorna medições paginadas.
+        /// Returns paginated measurements with HATEOAS navigation links.
         /// </summary>
-        /// <param name="page">Número da página (padrão: 1)</param>
-        /// <param name="pageSize">Tamanho da página (padrão: 10)</param>
-        /// <returns>Resposta paginada com medições</returns>
-        [HttpGet]
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
+        /// <returns>Paginated response with measurements and HATEOAS links</returns>
+        [HttpGet(Name = "GetFieldMeasurementsPaginated")]
         [ProducesResponseType(typeof(PagedResponse<FieldMeasurementResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
@@ -84,17 +88,29 @@ namespace API.Controllers.v1
             };
 
             var result = await _service.GetMeasurementsPaginatedAsync(paginationParams);
+
+            // Add HATEOAS links to each measurement
+            HateoasHelper.AddLinksToMeasurements(result.Data, Url, "1.0");
+
+            // Add pagination links
+            result.Links = HateoasHelper.CreatePaginationLinks(
+                Url, 
+                result.CurrentPage, 
+                result.PageSize, 
+                result.TotalPages, 
+                "1.0");
+
             return Ok(result);
         }
         #endregion
 
         #region POST
         /// <summary>
-        /// Adiciona uma nova medição de telemetria de campo.
-        /// Verifica automaticamente condições de alerta (ex: seca prolongada).
+        /// Adds a new field telemetry measurement.
+        /// Automatically checks for alert conditions (e.g., prolonged drought).
         /// </summary>
-        /// <param name="request">Dados da medição</param>
-        /// <returns>Medição criada com links HATEOAS</returns>
+        /// <param name="request">Measurement data</param>
+        /// <returns>Created measurement with HATEOAS links</returns>
         [HttpPost(Name = "CreateFieldMeasurement")]
         [ProducesResponseType(typeof(FieldMeasurementResponse), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]

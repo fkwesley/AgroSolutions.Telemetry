@@ -7,8 +7,9 @@ using DomainLogLevel = Domain.Enums.LogLevel;
 namespace API.Middlewares
 {
     /// <summary>
-    /// Middleware para logging automático de todas as requisições HTTP.
-    /// Captura informações detalhadas para auditoria e análise de performance.
+    /// Middleware for automatic logging of all HTTP requests.
+    /// Captures detailed information for auditing and performance analysis.
+    /// Also manages Correlation ID for distributed tracing.
     /// </summary>
     public class RequestLoggingMiddleware
     {
@@ -25,10 +26,24 @@ namespace API.Middlewares
 
         public async Task InvokeAsync(HttpContext context, IServiceProvider serviceProvider)
         {
+            // Get or generate correlation ID
+            var correlationId = context.Request.Headers["X-Correlation-ID"].FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(correlationId))
+            {
+                correlationId = Guid.NewGuid().ToString();
+            }
+
+            // Add to response header
+            context.Response.Headers.TryAdd("X-Correlation-ID", correlationId);
+
+            // Store in HttpContext.Items for use in controllers/services
+            context.Items["CorrelationId"] = correlationId;
+
             // Criar log entry
             var logEntry = new RequestLog
             {
-                TraceId = Activity.Current?.Id ?? context.TraceIdentifier,
+                TraceId = correlationId,
                 Method = context.Request.Method,
                 Path = context.Request.Path,
                 QueryString = context.Request.QueryString.ToString(),
@@ -68,9 +83,10 @@ namespace API.Middlewares
 
                 // Capturar response body se necessário
                 if (ShouldLogResponseBody(context.Response.StatusCode))
-                {
                     logEntry.ResponseBody = await ReadResponseBodyAsync(responseBody);
-                }
+
+                // ⚡ IMPORTANTE: Resetar posição do stream antes de copiar
+                responseBody.Seek(0, SeekOrigin.Begin);
 
                 // Copiar response para stream original
                 await responseBody.CopyToAsync(originalBodyStream);
