@@ -8,13 +8,13 @@ namespace Domain.Events
     /// </summary>
     public class DroughtAlertRequiredEvent : IDomainEvent
     {
-        public Guid FieldId { get; }
+        public int FieldId { get; }
         public decimal CurrentSoilMoisture { get; }
         public DateTime FirstLowMoistureDetected { get; }
         public DateTime OccurredOn { get; }
 
         public DroughtAlertRequiredEvent(
-            Guid fieldId, 
+            int fieldId, 
             decimal currentSoilMoisture, 
             DateTime firstLowMoistureDetected)
         {

@@ -8,7 +8,7 @@ namespace Application.DTO.FieldMeasurement
     public class FieldMeasurementResponse : IHateoasResource
     {
         public Guid Id { get; set; }
-        public Guid FieldId { get; set; }
+        public int FieldId { get; set; }
         public decimal SoilMoisture { get; set; }
         public decimal AirTemperature { get; set; }
         public decimal Precipitation { get; set; }

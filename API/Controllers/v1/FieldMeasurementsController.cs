@@ -51,15 +51,15 @@ namespace API.Controllers.v1
         }
 
         /// <summary>
-        /// Retorna todas as medições de um campo específico.
+        /// Returns all measurements for a specific field.
         /// </summary>
-        /// <param name="fieldId">ID do campo</param>
-        /// <returns>Lista de medições</returns>
+        /// <param name="fieldId">Field ID</param>
+        /// <returns>List of measurements with HATEOAS links</returns>
         [HttpGet("field/{fieldId}")]
         [ProducesResponseType(typeof(IEnumerable<FieldMeasurementResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetByFieldId(Guid fieldId)
+        public async Task<IActionResult> GetByFieldId(int fieldId)
         {
             var measurements = await _service.GetMeasurementsByFieldIdAsync(fieldId);
 

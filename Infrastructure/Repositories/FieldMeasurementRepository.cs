@@ -145,7 +145,7 @@ namespace Infrastructure.Repositories
             }
         }
 
-        public async Task<IEnumerable<FieldMeasurement>> GetByFieldIdAsync(Guid fieldId)
+        public async Task<IEnumerable<FieldMeasurement>> GetByFieldIdAsync(int fieldId)
         {
             await EnsureContainerAsync();
 
@@ -179,7 +179,7 @@ namespace Infrastructure.Repositories
         }
 
         public async Task<IEnumerable<FieldMeasurement>> GetByFieldIdAndDateRangeAsync(
-            Guid fieldId, 
+            int fieldId, 
             DateTime startDate, 
             DateTime endDate)
         {

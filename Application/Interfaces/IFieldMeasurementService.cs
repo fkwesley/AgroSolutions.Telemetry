@@ -19,9 +19,9 @@ namespace Application.Interfaces
         Task<FieldMeasurementResponse> GetMeasurementByIdAsync(Guid id);
 
         /// <summary>
-        /// Retorna medições de um campo específico.
+        /// Returns measurements for a specific field.
         /// </summary>
-        Task<IEnumerable<FieldMeasurementResponse>> GetMeasurementsByFieldIdAsync(Guid fieldId);
+        Task<IEnumerable<FieldMeasurementResponse>> GetMeasurementsByFieldIdAsync(int fieldId);
 
         /// <summary>
         /// Retorna medições paginadas.

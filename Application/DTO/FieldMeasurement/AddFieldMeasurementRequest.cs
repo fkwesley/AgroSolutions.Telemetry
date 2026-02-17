@@ -8,7 +8,7 @@ namespace Application.DTO.FieldMeasurement
     public class AddFieldMeasurementRequest
     {
         [Required(ErrorMessage = "FieldId is required.")]
-        public Guid FieldId { get; set; }
+        public int FieldId { get; set; }
 
         [Required(ErrorMessage = "Soil moisture is required.")]
         [Range(0, 100, ErrorMessage = "Soil moisture must be between 0 and 100.")]

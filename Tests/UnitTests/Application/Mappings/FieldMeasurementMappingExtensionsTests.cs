@@ -13,7 +13,7 @@ namespace Tests.UnitTests.Application.Mappings
             // Arrange
             var request = new AddFieldMeasurementRequest
             {
-                FieldId = Guid.NewGuid(),
+                FieldId = 1,
                 SoilMoisture = 65.5m,
                 AirTemperature = 28.3m,
                 Precipitation = 15.2m,
@@ -38,7 +38,7 @@ namespace Tests.UnitTests.Application.Mappings
         public void ToResponse_ValidEntity_ShouldMapCorrectly()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 2;
             var collectedAt = DateTime.UtcNow.AddHours(-1);
             var userId = "user-789";
 
@@ -68,7 +68,7 @@ namespace Tests.UnitTests.Application.Mappings
         public void ToEntity_ToResponse_RoundTrip_ShouldPreserveData()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 3;
             var request = new AddFieldMeasurementRequest
             {
                 FieldId = fieldId,

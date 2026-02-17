@@ -2,6 +2,7 @@ using Application.DTO.Common;
 using Application.DTO.FieldMeasurement;
 using Application.Interfaces;
 using Application.Mappings;
+using Domain.Entities;
 using Domain.Events;
 using Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -58,7 +59,7 @@ namespace Application.Services
             return measurement.ToResponse();
         }
 
-        public async Task<IEnumerable<FieldMeasurementResponse>> GetMeasurementsByFieldIdAsync(Guid fieldId)
+        public async Task<IEnumerable<FieldMeasurementResponse>> GetMeasurementsByFieldIdAsync(int fieldId)
         {
             var measurements = await _repository.GetByFieldIdAsync(fieldId);
             return measurements.Select(m => m.ToResponse()).ToList();
@@ -95,7 +96,7 @@ namespace Application.Services
         /// Verifica se há condições de seca prolongada (umidade < 30% por mais de 24h).
         /// Se detectado, dispara evento de alerta.
         /// </summary>
-        private async Task CheckDroughtConditionsAsync(Domain.Entities.FieldMeasurement currentMeasurement)
+        private async Task CheckDroughtConditionsAsync(FieldMeasurement currentMeasurement)
         {
             const decimal droughtThreshold = 30m;
             const int droughtHours = 24;

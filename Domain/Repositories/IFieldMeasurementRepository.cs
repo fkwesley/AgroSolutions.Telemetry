@@ -14,13 +14,13 @@ namespace Domain.Repositories
         /// <summary>
         /// Retorna todas as medições de um campo específico.
         /// </summary>
-        Task<IEnumerable<FieldMeasurement>> GetByFieldIdAsync(Guid fieldId);
+        Task<IEnumerable<FieldMeasurement>> GetByFieldIdAsync(int fieldId);
 
         /// <summary>
         /// Retorna medições de um campo em um intervalo de tempo.
         /// </summary>
         Task<IEnumerable<FieldMeasurement>> GetByFieldIdAndDateRangeAsync(
-            Guid fieldId, 
+            int fieldId, 
             DateTime startDate, 
             DateTime endDate);
 

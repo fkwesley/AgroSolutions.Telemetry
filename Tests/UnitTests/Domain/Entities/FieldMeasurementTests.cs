@@ -10,7 +10,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_ValidData_ShouldCreateMeasurement()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 1;
             var soilMoisture = 45.5m;
             var airTemperature = 25.3m;
             var precipitation = 12.7m;
@@ -41,7 +41,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_WithoutUserId_ShouldCreateMeasurement()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 2;
             var soilMoisture = 45.5m;
             var airTemperature = 25.3m;
             var precipitation = 12.7m;
@@ -67,7 +67,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_InvalidSoilMoisture_ShouldThrowBusinessException(decimal invalidMoisture)
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 3;
             var collectedAt = DateTime.UtcNow;
 
             // Act & Assert
@@ -83,7 +83,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_InvalidAirTemperature_ShouldThrowBusinessException(decimal invalidTemp)
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 4;
             var collectedAt = DateTime.UtcNow;
 
             // Act & Assert
@@ -97,7 +97,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_NegativePrecipitation_ShouldThrowBusinessException()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 5;
             var collectedAt = DateTime.UtcNow;
 
             // Act & Assert
@@ -111,7 +111,7 @@ namespace Tests.UnitTests.Domain.Entities
         public void Constructor_FutureCollectedDate_ShouldThrowBusinessException()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 6;
             var futureDate = DateTime.UtcNow.AddHours(1);
 
             // Act & Assert
@@ -129,16 +129,16 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(Guid.Empty, 50, 25, 10, collectedAt));
+                new FieldMeasurement(0, 50, 25, 10, collectedAt));
 
-            Assert.Contains("FieldId não pode ser vazio", exception.Message);
+            Assert.Contains("FieldId não pode ser zero", exception.Message);
         }
 
         [Fact]
         public void Constructor_BoundaryValues_ShouldSucceed()
         {
             // Arrange
-            var fieldId = Guid.NewGuid();
+            var fieldId = 7;
             var collectedAt = DateTime.UtcNow;
 
             // Act - Testing boundary values

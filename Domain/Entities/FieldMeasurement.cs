@@ -16,7 +16,7 @@ namespace Domain.Entities
     public class FieldMeasurement : BaseEntity
     {
         public Guid Id { get; private set; }
-        public Guid FieldId { get; private set; }
+        public int FieldId { get; private set; }
         public decimal SoilMoisture { get; private set; }
         public decimal AirTemperature { get; private set; }
         public decimal Precipitation { get; private set; }
@@ -28,7 +28,7 @@ namespace Domain.Entities
         private FieldMeasurement() { }
 
         public FieldMeasurement(
-            Guid fieldId,
+            int fieldId,
             decimal soilMoisture,
             decimal airTemperature,
             decimal precipitation,
@@ -51,8 +51,8 @@ namespace Domain.Entities
         // Método de validação tem uma única responsabilidade: garantir a consistência dos dados
         private void Validate()
         {
-            if (FieldId == Guid.Empty)
-                throw new BusinessException("FieldId não pode ser vazio.");
+            if (FieldId == 0)
+                throw new BusinessException("FieldId não pode ser zero.");
 
             if (SoilMoisture < 0 || SoilMoisture > 100)
                 throw new BusinessException("Umidade inválida. Deve estar entre 0 e 100.");
