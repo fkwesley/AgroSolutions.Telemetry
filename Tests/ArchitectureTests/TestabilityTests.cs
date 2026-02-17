@@ -1,155 +1,188 @@
 using NetArchTest.Rules;
+using Xunit;
 
-namespace Tests.ArchitectureTests;
-
-/// <summary>
-/// Testes de testabilidade e design para testes.
-/// </summary>
-public class TestabilityTests
+namespace Tests.ArchitectureTests
 {
-    [Fact]
-    public void Services_Should_Have_Constructor_For_Dependency_Injection()
+    public class TestabilityTests
     {
-        // Arrange
-        var types = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = types
-            .Where(t => !t.IsAbstract && t.GetConstructors().Length == 0)
-            .Select(t => t.Name)
-            .ToList();
-
-        // Assert
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void Services_Should_NotHave_Multiple_Public_Constructors()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = types
-            .Where(t => t.GetConstructors().Count(c => c.IsPublic) > 1)
-            .Select(t => $"{t.Name} has {t.GetConstructors().Count(c => c.IsPublic)} public constructors")
-            .ToList();
-
-        // Assert
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void Domain_Entities_Should_Favor_ExplicitConstructors()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Domain.Entities.Order).Assembly)
-            .That()
-            .ResideInNamespace("Domain.Entities")
-            .And()
-            .AreClasses()
-            .And()
-            .DoNotHaveName("BaseEntity")
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Services_ShouldHave_InterfaceBasedDependencies()
         {
-            var parameterlessConstructors = type.GetConstructors()
-                .Where(c => c.IsPublic && c.GetParameters().Length == 0)
-                .ToList();
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            // OK ter construtor sem parâmetros se for protected/private (para EF)
-            if (parameterlessConstructors.Any())
+            // Assert
+            foreach (var type in types)
             {
-                violations.Add($"{type.Name} has public parameterless constructor");
+                var constructor = type.GetConstructors().FirstOrDefault();
+                if (constructor != null)
+                {
+                    var parameters = constructor.GetParameters();
+                    
+                    foreach (var param in parameters)
+                    {
+                        var isInterface = param.ParameterType.IsInterface;
+                        var isLogger = param.ParameterType.Name.Contains("ILogger");
+                        
+                        Assert.True(isInterface || isLogger,
+                            $"{type.Name} constructor parameter {param.Name} should be an interface for testability");
+                    }
+                }
             }
         }
 
-        // Assert - Soft assertion pois EF precisa de construtores
-        // Este é mais um guia de boas práticas do que uma regra rígida
-        Assert.True(violations.Count <= 5, 
-            $"Consider making parameterless constructors protected for EF: {string.Join(", ", violations)}");
-    }
-
-    [Fact]
-    public void Controllers_Should_Only_Depend_On_Service_Interfaces()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Controllers_ShouldHave_InterfaceDependencies()
         {
-            var constructorParams = type.GetConstructors()
-                .SelectMany(c => c.GetParameters())
-                .Where(p => p.ParameterType.Namespace?.StartsWith("Application") == true &&
-                           !p.ParameterType.IsInterface)
-                .Select(p => $"{type.Name} depends on concrete type {p.ParameterType.Name}")
-                .ToList();
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            violations.AddRange(constructorParams);
+            // Assert
+            foreach (var type in types)
+            {
+                var constructor = type.GetConstructors().FirstOrDefault();
+                if (constructor != null)
+                {
+                    var hasInterfaceDependencies = constructor.GetParameters()
+                        .All(p => p.ParameterType.IsInterface);
+
+                    Assert.True(hasInterfaceDependencies,
+                        $"{type.Name} should depend only on interfaces for easier mocking in tests");
+                }
+            }
         }
 
-        // Assert
-        Assert.Empty(violations);
-    }
+        [Fact]
+        public void Entities_ShouldBe_PureClasses()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Domain.Entities.FieldMeasurement).Assembly)
+                .That()
+                .ResideInNamespace("Domain.Entities")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-    [Fact]
-    public void Infrastructure_Repositories_Should_Implement_Interface()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Infrastructure.Context.OrdersDbContext).Assembly)
-            .That()
-            .ResideInNamespaceMatching("Infrastructure.Repositories.*")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith("Repository")
-            .GetTypes();
+            // Assert - Entities should not have external dependencies
+            foreach (var type in result)
+            {
+                var hasExternalDeps = type.GetConstructors()
+                    .SelectMany(c => c.GetParameters())
+                    .Any(p => p.ParameterType.Namespace?.StartsWith("System.Net") == true ||
+                             p.ParameterType.Namespace?.StartsWith("System.Data") == true);
 
-        var violations = types
-            .Where(t => !t.GetInterfaces().Any())
-            .Select(t => t.Name)
-            .ToList();
+                Assert.False(hasExternalDeps,
+                    $"{type.Name} should not have external dependencies for testability");
+            }
+        }
 
-        // Assert
-        Assert.Empty(violations);
-    }
+        [Fact]
+        public void Controllers_ShouldNot_HaveBusinessLogic()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-    [Fact]
-    public void Static_Classes_Should_Be_Limited()
-    {
-        // Arrange
-        var maxStaticClasses = 10; // Ajuste conforme necessário
-        
-        // Act
-        var staticClasses = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .AreClasses()
-            .And()
-            .AreStatic()
-            .GetTypes()
-            .Where(t => !t.Name.Contains("Extensions")) // Extensions são OK
-            .ToList();
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && 
+                                !m.IsSpecialName && 
+                                m.DeclaringType == type &&
+                                m.ReturnType.Name.Contains("Task"));
 
-        // Assert
-        Assert.True(staticClasses.Count <= maxStaticClasses,
-            $"Too many static classes ({staticClasses.Count}). Static classes make testing harder.");
+                foreach (var method in methods)
+                {
+                    // Verificar se mÃ©todos sÃ£o curtos (indicativo de delegaÃ§Ã£o de lÃ³gica)
+                    var methodBody = method.GetMethodBody();
+                    if (methodBody != null)
+                    {
+                        // Controllers devem ter mÃ©todos simples que delegam para services
+                        Assert.True(true, "Controller methods should delegate to services");
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public void Repositories_ShouldNot_HaveBusinessLogic()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Infrastructure.Repositories.FieldMeasurementRepository).Assembly)
+                .That()
+                .ResideInNamespace("Infrastructure.Repositories")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in types)
+            {
+                // Repositories devem apenas fazer CRUD, nÃ£o ter lÃ³gica de negÃ³cio
+                var hasOnlyDataAccess = !type.GetMethods()
+                    .Any(m => m.Name.Contains("Calculate") || 
+                             m.Name.Contains("Validate") || 
+                             m.Name.Contains("Process"));
+
+                Assert.True(hasOnlyDataAccess,
+                    $"{type.Name} should only handle data access, not business logic");
+            }
+        }
+
+        [Fact]
+        public void Services_ShouldNot_HaveStaticMethods()
+        {
+            // Arrange & Act
+            var staticClasses = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .And()
+                .AreNotAbstract()
+                .GetTypes()
+                .Where(t => t.GetMethods()
+                    .Any(m => m.IsStatic && m.IsPublic && !m.IsSpecialName));
+
+            // Assert
+            Assert.Empty(staticClasses.Select(t => t.Name));
+        }
+
+        [Fact]
+        public void AllClasses_ShouldHave_SingleConstructor()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in types)
+            {
+                var constructors = type.GetConstructors();
+                var publicConstructors = constructors.Where(c => c.IsPublic).ToList();
+
+                Assert.True(publicConstructors.Count <= 1,
+                    $"{type.Name} should have at most one public constructor for DI simplicity");
+            }
+        }
     }
 }

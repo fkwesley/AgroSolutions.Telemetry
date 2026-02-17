@@ -1,4 +1,4 @@
-name: CI/CD - API.Template - AKS
+name: CI/CD - AgroSolutions.Telemetry - AKS
 
 on:
   push:
@@ -24,25 +24,25 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore Dependencies
-        run: dotnet restore API.Template.sln
+        run: dotnet restore AgroSolutions.Telemetry.sln
 
       - name: Build
-        run: dotnet build API.Template.sln --configuration Release --no-restore
+        run: dotnet build AgroSolutions.Telemetry.sln --configuration Release --no-restore
         
       - name: Architecture Tests
-        run: dotnet test API.Template.sln --filter "FullyQualifiedName~ArchitectureTests" --configuration Release --no-build --verbosity normal
+        run: dotnet test AgroSolutions.Telemetry.sln --filter "FullyQualifiedName~ArchitectureTests" --configuration Release --no-build --verbosity normal
 
       - name: Unit Tests
-        run: dotnet test API.Template.sln --filter "FullyQualifiedName~UnitTests" --configuration Release --no-build --verbosity normal
+        run: dotnet test AgroSolutions.Telemetry.sln --filter "FullyQualifiedName~UnitTests" --configuration Release --no-build --verbosity normal
         
       - name: Integration Tests
-        run: dotnet test API.Template.sln --filter "FullyQualifiedName~IntegrationTests" --configuration Release --no-build --verbosity normal
+        run: dotnet test AgroSolutions.Telemetry.sln --filter "FullyQualifiedName~IntegrationTests" --configuration Release --no-build --verbosity normal
         
       - name: Code Coverage
-        run: dotnet test API.Template.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test AgroSolutions.Telemetry.sln --configuration Release --no-build --collect:"XPlat Code Coverage" --logger "trx;LogFileName=test-results.trx"
 
-      # - name: Login to Azure Container Registry
-      #   run: echo ${{ secrets.AZURE_ACR_PASSWORD }} | docker login acrfcg.azurecr.io -u ${{ secrets.AZURE_ACR_USERNAME }} --password-stdin
+      - name: Login to Azure Container Registry
+        run: echo ${{ secrets.AZURE_ACR_PASSWORD }} | docker login acragro.azurecr.io -u ${{ vars.AZURE_ACR_USERNAME }} --password-stdin
 
       - name: Set Docker Image Tag
         id: set_tag
@@ -52,13 +52,13 @@ jobs:
           
       - name: Build Docker Image
         run: |
-          docker build -t acrfcg.azurecr.io/fiapcloudgames/orders/api:latest \
-                       -t acrfcg.azurecr.io/fiapcloudgames/orders/api:${{ steps.set_tag.outputs.image_tag }} .
+          docker build -t acragro.azurecr.io/agrosolutions/telemetry/api:latest \
+                       -t acragro.azurecr.io/agrosolutions/telemetry/api:${{ steps.set_tag.outputs.image_tag }} .
 
-  #     - name: Push Docker Image to ACR
-  #       run: |
-  #         docker push acrfcg.azurecr.io/fiapcloudgames/orders/api:latest
-  #         docker push acrfcg.azurecr.io/fiapcloudgames/orders/api:${{ steps.set_tag.outputs.image_tag }}
+      - name: Push Docker Image to ACR
+        run: |
+          docker push acragro.azurecr.io/agrosolutions/telemetry/api:latest
+          docker push acragro.azurecr.io/agrosolutions/telemetry/api:${{ steps.set_tag.outputs.image_tag }}
           
   # deploy-dev:
   #   needs: build-test-pushDockerImage
@@ -75,36 +75,29 @@ jobs:
   #         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
   #     - name: Set AKS context
-  #       run: az aks get-credentials --resource-group RG_FCG --name aks-fcg-orders --overwrite-existing
+  #       run: az aks get-credentials --resource-group RG_AGRO --name aks-agro-telemetry --overwrite-existing
         
   #     - name: Apply Namespaces
   #       run: kubectl apply -f Kubernetes/namespace.yaml
         
   #     - name: Apply ConfigMap and Secret
   #       run: |
-  #            export FCG_DB_CONNECTION_STRING="${{ secrets.FCG_DB_CONNECTION_STRING }}"
-  #            export FCG_SERVICEBUS_CONNECTION_STRING="${{ secrets.FCG_SERVICEBUS_CONNECTION_STRING }}"
-  #            export FCG_RABBITMQ_CONNECTION_STRING="${{ secrets.FCG_RABBITMQ_CONNECTION_STRING }}" 
-  #            export GAMES_API_ENDPOINT="${{ vars.GAMES_API_ENDPOINT }}"
-  #            export GAMES_API_AUTH_TOKEN="${{ secrets.GAMES_API_AUTH_TOKEN }}"
-  #            export GAMES_API_SUBSCRIPTION_KEY="${{ secrets.GAMES_API_SUBSCRIPTION_KEY }}"
-  #            export NEW_RELIC_LICENSE_KEY="${{ secrets.NEW_RELIC_LICENSE_KEY }}"
-  #            export NEW_RELIC_ENABLED="${{ vars.NEW_RELIC_ENABLED }}"
-  #            export NEW_RELIC_ENDPOINT="${{ vars.NEW_RELIC_ENDPOINT }}"
+  #            export AGRODB_CONNECTIONSTRING="${{ secrets.AGRODB_CONNECTIONSTRING }}"
+  #            export SERVICEBUS_CONNECTIONSTRING="${{ secrets.SERVICEBUS_CONNECTIONSTRING }}"
   #            export APM_SERVICE_NAME="${{ vars.APM_SERVICE_NAME }}"
   #            export ELASTIC_APM_ENABLED="${{ vars.ELASTIC_APM_ENABLED }}"
   #            export ELASTIC_APM_SERVER_URL="${{ vars.ELASTIC_APM_SERVER_URL }}"
   #            export ELASTIC_APM_SECRET_TOKEN="${{ secrets.ELASTIC_APM_SECRET_TOKEN }}"
   #            export ENV="${{ vars.ENV }}"
-  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n fcg-orders-dev -f -            # aplica o configmap com substituição de variáveis
-  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n fcg-orders-dev -f -               # aplica o secret com substituição de variáveis
+  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n agro-telemetry-dev -f -            # aplica o configmap com substituição de variáveis
+  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n agro-telemetry-dev -f -               # aplica o secret com substituição de variáveis
 
   #     - name: Deploy to AKS - DEV
   #       run: |
   #            export IMAGE_TAG="${{ needs.build-test-pushDockerImage.outputs.image_tag }}"           # tag da imagem Docker
-  #            envsubst < Kubernetes/deployment.yaml | kubectl apply -n fcg-orders-dev -f -           # aplica o deployment com substituição de variáveis
-  #            kubectl apply -f Kubernetes/service.yaml -n fcg-orders-dev                             # aplica o service
-  #            kubectl rollout status deployment/fcg-orders -n fcg-orders-dev                         # aguarda o rollout completar
+  #            envsubst < Kubernetes/deployment.yaml | kubectl apply -n agro-telemetry-dev -f -           # aplica o deployment com substituição de variáveis
+  #            kubectl apply -f Kubernetes/service.yaml -n agro-telemetry-dev                             # aplica o service
+  #            kubectl rollout status deployment/agro-users -n agro-telemetry-dev                         # aguarda o rollout completar
              
   # deploy-uat:
   #   needs:
@@ -123,36 +116,28 @@ jobs:
   #         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
   #     - name: Set AKS context
-  #       run: az aks get-credentials --resource-group RG_FCG --name aks-fcg-orders --overwrite-existing
+  #       run: az aks get-credentials --resource-group RG_AGRO --name aks-agro-telemetry --overwrite-existing
         
   #     - name: Apply Namespaces
   #       run: kubectl apply -f Kubernetes/namespace.yaml
         
   #     - name: Apply ConfigMap and Secret
   #       run: |
-  #            export FCG_DB_CONNECTION_STRING="${{ secrets.FCG_DB_CONNECTION_STRING }}"
-  #            export FCG_SERVICEBUS_CONNECTION_STRING="${{ secrets.FCG_SERVICEBUS_CONNECTION_STRING }}"
-  #            export FCG_RABBITMQ_CONNECTION_STRING="${{ secrets.FCG_RABBITMQ_CONNECTION_STRING }}" 
-  #            export GAMES_API_ENDPOINT="${{ vars.GAMES_API_ENDPOINT }}"
-  #            export GAMES_API_AUTH_TOKEN="${{ secrets.GAMES_API_AUTH_TOKEN }}"
-  #            export GAMES_API_SUBSCRIPTION_KEY="${{ secrets.GAMES_API_SUBSCRIPTION_KEY }}"
-  #            export NEW_RELIC_LICENSE_KEY="${{ secrets.NEW_RELIC_LICENSE_KEY }}"
-  #            export NEW_RELIC_ENABLED="${{ vars.NEW_RELIC_ENABLED }}"
-  #            export NEW_RELIC_ENDPOINT="${{ vars.NEW_RELIC_ENDPOINT }}"
+  #            export AGRODB_CONNECTIONSTRING="${{ secrets.AGRODB_CONNECTIONSTRING }}"
   #            export APM_SERVICE_NAME="${{ vars.APM_SERVICE_NAME }}"
   #            export ELASTIC_APM_ENABLED="${{ vars.ELASTIC_APM_ENABLED }}"
   #            export ELASTIC_APM_SERVER_URL="${{ vars.ELASTIC_APM_SERVER_URL }}"
   #            export ELASTIC_APM_SECRET_TOKEN="${{ secrets.ELASTIC_APM_SECRET_TOKEN }}"
   #            export ENV="${{ vars.ENV }}"
-  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n fcg-orders-uat -f -            # aplica o configmap com substituição de variáveis
-  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n fcg-orders-uat -f -               # aplica o secret com substituição de variáveis
+  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n agro-telemetry-uat -f -            # aplica o configmap com substituição de variáveis
+  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n agro-telemetry-uat -f -               # aplica o secret com substituição de variáveis
 
   #     - name: Deploy to AKS - UAT
   #       run: |
   #            export IMAGE_TAG="${{ needs.build-test-pushDockerImage.outputs.image_tag }}"           # tag da imagem Docker
-  #            # envsubst < Kubernetes/deployment.yaml | kubectl apply -n fcg-orders-uat -f -           # aplica o deployment com substituição de variáveis
-  #            # kubectl apply -f Kubernetes/service.yaml -n fcg-orders-uat                             # aplica o service
-  #            # kubectl rollout status deployment/fcg-orders -n fcg-orders-uat                         # aguarda o rollout completar
+  #            # envsubst < Kubernetes/deployment.yaml | kubectl apply -n agro-telemetry-uat -f -           # aplica o deployment com substituição de variáveis
+  #            # kubectl apply -f Kubernetes/service.yaml -n agro-telemetry-uat                             # aplica o service
+  #            # kubectl rollout status deployment/agro-users -n agro-telemetry-uat                         # aguarda o rollout completar
 
   # deploy-prd:
   #   needs:
@@ -173,37 +158,29 @@ jobs:
   #         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
   #     - name: Set AKS context
-  #       run: az aks get-credentials --resource-group RG_FCG --name aks-fcg-orders --overwrite-existing
+  #       run: az aks get-credentials --resource-group RG_AGRO --name aks-agro-telemetry --overwrite-existing
         
   #     - name: Apply Namespaces
   #       run: kubectl apply -f Kubernetes/namespace.yaml
         
   #     - name: Apply ConfigMap and Secret
   #       run: |
-  #            export FCG_DB_CONNECTION_STRING="${{ secrets.FCG_DB_CONNECTION_STRING }}"
-  #            export FCG_SERVICEBUS_CONNECTION_STRING="${{ secrets.FCG_SERVICEBUS_CONNECTION_STRING }}"
-  #            export FCG_RABBITMQ_CONNECTION_STRING="${{ secrets.FCG_RABBITMQ_CONNECTION_STRING }}" 
-  #            export GAMES_API_ENDPOINT="${{ vars.GAMES_API_ENDPOINT }}"
-  #            export GAMES_API_AUTH_TOKEN="${{ secrets.GAMES_API_AUTH_TOKEN }}"
-  #            export GAMES_API_SUBSCRIPTION_KEY="${{ secrets.GAMES_API_SUBSCRIPTION_KEY }}"
-  #            export NEW_RELIC_LICENSE_KEY="${{ secrets.NEW_RELIC_LICENSE_KEY }}"
-  #            export NEW_RELIC_ENABLED="${{ vars.NEW_RELIC_ENABLED }}"
-  #            export NEW_RELIC_ENDPOINT="${{ vars.NEW_RELIC_ENDPOINT }}"
+  #            export AGRODB_CONNECTIONSTRING="${{ secrets.AGRODB_CONNECTIONSTRING }}"
   #            export APM_SERVICE_NAME="${{ vars.APM_SERVICE_NAME }}"
   #            export ELASTIC_APM_ENABLED="${{ vars.ELASTIC_APM_ENABLED }}"
   #            export ELASTIC_APM_SERVER_URL="${{ vars.ELASTIC_APM_SERVER_URL }}"
   #            export ELASTIC_APM_SECRET_TOKEN="${{ secrets.ELASTIC_APM_SECRET_TOKEN }}"
   #            export ENV="${{ vars.ENV }}"
-  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n fcg-orders -f -            # aplica o configmap com substituição de variáveis
-  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n fcg-orders -f -               # aplica o secret com substituição de variáveis
+  #            envsubst < Kubernetes/configmap.yaml | kubectl apply -n agro-telemetry -f -            # aplica o configmap com substituição de variáveis
+  #            envsubst < Kubernetes/secret.yaml | kubectl apply -n agro-telemetry -f -               # aplica o secret com substituição de variáveis
 
   #     - name: Deploy to AKS - PRD
   #       run: |
   #            export IMAGE_TAG="${{ needs.build-test-pushDockerImage.outputs.image_tag }}"       # tag da imagem Docker
-  #            envsubst < Kubernetes/deployment.yaml | kubectl apply -n fcg-orders -f -           # aplica o deployment com substituição de variáveis
-  #            kubectl apply -f Kubernetes/service.yaml -n fcg-orders                             # aplica o service
-  #            kubectl rollout status deployment/fcg-orders -n fcg-orders                         # aguarda o rollout completar
+  #            envsubst < Kubernetes/deployment.yaml | kubectl apply -n agro-telemetry -f -           # aplica o deployment com substituição de variáveis
+  #            kubectl apply -f Kubernetes/service.yaml -n agro-telemetry                             # aplica o service
+  #            kubectl rollout status deployment/agro-users -n agro-telemetry                         # aguarda o rollout completar
       
   #     - name: Deploy HPA
   #       run: |
-  #            kubectl apply -f Kubernetes/hpa.yaml -n fcg-orders                                  # aplica o HPA
+  #            kubectl apply -f Kubernetes/hpa.yaml -n agro-telemetry                                  # aplica o HPA

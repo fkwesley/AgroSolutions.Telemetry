@@ -1,27 +1,38 @@
-﻿using System.Collections.Generic;
+using Domain.Common;
+using Domain.Enums;
 
 namespace Domain.Entities
 {
-    public class RequestLog
+    /// <summary>
+    /// Entidade para armazenar logs de requisições HTTP.
+    /// Usada para auditoria e análise de uso da API.
+    /// NOTA: Esta classe tem setters públicos por ser usada como DTO no middleware.
+    /// </summary>
+    public class RequestLog : BaseEntity
     {
-        public Guid LogId { get; set; } = Guid.NewGuid();
-        
-        // CorrelationId: ID compartilhado entre múltiplas APIs para rastrear toda a jornada
-        // Ex: API Orders chama API Games - ambos terão o mesmo CorrelationId
-        public Guid CorrelationId { get; set; }
-        
-        // ServiceName: Identifica qual API/serviço gerou este log
-        // Ex: "orders-api", "games-api", "payments-api"
-        public required string ServiceName { get; set; }
-        
-        public required string UserId { get; set; } // UserId pode ser nulo se não houver autenticação
-        public required string HttpMethod { get; set; }
-        public required string Path { get; set; }
+        public Guid LogId { get; set; }
+        public string TraceId { get; set; } = string.Empty;
+        public string Method { get; set; } = string.Empty;
+        public string Path { get; set; } = string.Empty;
+        public string? QueryString { get; set; }
         public int StatusCode { get; set; }
-        public string? RequestBody { get; set; } = null;
-        public string? ResponseBody { get; set; } = null;
-        public DateTime StartDate { get; set; } = DateTime.UtcNow;
-        public DateTime EndDate { get; set; }
-        public TimeSpan Duration { get; set; }
+        public long ResponseTimeMs { get; set; }
+        public DateTime RequestTime { get; set; }
+        public DateTime? ResponseTime { get; set; }
+        public string? UserId { get; set; }
+        public string? UserEmail { get; set; }
+        public string? RequestBody { get; set; }
+        public string? ResponseBody { get; set; }
+        public string? ErrorMessage { get; set; }
+        public string? StackTrace { get; set; }
+        public LogLevel LogLevel { get; set; }
+        public string? ClientIp { get; set; }
+        public string? UserAgent { get; set; }
+
+        public RequestLog()
+        {
+            LogId = Guid.NewGuid();
+            RequestTime = DateTime.UtcNow;
+        }
     }
 }

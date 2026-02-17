@@ -1,169 +1,168 @@
 using NetArchTest.Rules;
+using Xunit;
 
-namespace Tests.ArchitectureTests;
-
-/// <summary>
-/// Testes que garantem naming conventions e organização do código.
-/// </summary>
-public class NamingConventionTests
+namespace Tests.ArchitectureTests
 {
-    [Fact]
-    public void Services_Should_HaveName_EndingWith_Service()
+    public class NamingConventionTests
     {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Application.Interfaces.IOrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .And()
-            .DoNotHaveName("DomainEventDispatcher") // Dispatcher é um padrão válido
-            .Should()
-            .HaveNameEndingWith("Service")
-            .GetResult();
+        [Fact]
+        public void Interfaces_ShouldStartWith_I()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Application.Interfaces.IFieldMeasurementService).Assembly)
+                .That()
+                .AreInterfaces()
+                .Should()
+                .HaveNameStartingWith("I")
+                .GetResult();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All services should end with 'Service'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
+            // Assert
+            Assert.True(result.IsSuccessful, "All interfaces should start with 'I'");
+        }
 
-    [Fact]
-    public void Interfaces_Should_StartWith_I()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Application.Interfaces.IOrderService).Assembly)
-            .That()
-            .AreInterfaces()
-            .Should()
-            .HaveNameStartingWith("I")
-            .GetResult();
+        [Fact]
+        public void Services_ShouldEndWith_Service()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Application.Interfaces.IFieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .And()
+                .DoNotHaveName("DomainEventDispatcher") // Dispatcher nÃ£o Ã© um Service tÃ­pico
+                .Should()
+                .HaveNameEndingWith("Service")
+                .GetResult();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All interfaces should start with 'I'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
+            // Assert
+            Assert.True(result.IsSuccessful, "All service classes should end with 'Service'");
+        }
 
-    [Fact]
-    public void Controllers_Should_HaveName_EndingWith_Controller()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .Should()
-            .HaveNameEndingWith("Controller")
-            .GetResult();
+        [Fact]
+        public void Controllers_ShouldEndWith_Controller()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .Should()
+                .HaveNameEndingWith("Controller")
+                .GetResult();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All controllers should end with 'Controller'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
+            // Assert
+            Assert.True(result.IsSuccessful, "All controller classes should end with 'Controller'");
+        }
 
-    [Fact]
-    public void DTOs_WithRequest_Should_HaveName_EndingWith_Request()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Application.DTO.Order.AddOrderRequest).Assembly)
-            .That()
-            .ResideInNamespaceMatching("Application.DTO.*")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameMatching(".*Request$")
-            .Should()
-            .HaveNameEndingWith("Request")
-            .GetResult();
+        [Fact]
+        public void DTOs_Request_ShouldEndWith_Request()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.DTO.FieldMeasurement.AddFieldMeasurementRequest).Assembly)
+                .That()
+                .ResideInNamespace("Application.DTO")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            "Request DTOs should end with 'Request'");
-    }
+            // Assert - DTOs devem ter nomenclatura consistente
+            foreach (var type in types)
+            {
+                var typeName = type.Name.Contains('`') ? type.Name.Substring(0, type.Name.IndexOf('`')) : type.Name;
 
-    [Fact]
-    public void DTOs_WithResponse_Should_HaveName_EndingWith_Response()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Application.DTO.Order.OrderResponse).Assembly)
-            .That()
-            .ResideInNamespaceMatching("Application.DTO.*")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameMatching(".*Response$")
-            .Should()
-            .HaveNameEndingWith("Response")
-            .GetResult();
+                var hasValidSuffix = typeName.EndsWith("Request") ||
+                                   typeName.EndsWith("Response") ||
+                                   typeName.EndsWith("Parameters") ||
+                                   typeName == "Link" ||
+                                   typeName == "PagedResponse" ||
+                                   typeName == "ComponentHealth" ||
+                                   typeName == "HealthResponse";
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            "Response DTOs should end with 'Response'");
-    }
+                Assert.True(hasValidSuffix, 
+                    $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");
+            }
+        }
 
-    [Fact]
-    public void Repositories_Should_HaveName_EndingWith_Repository()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Infrastructure.Context.OrdersDbContext).Assembly)
-            .That()
-            .ResideInNamespaceMatching("Infrastructure.Repositories.*")
-            .And()
-            .AreClasses()
-            .Should()
-            .HaveNameEndingWith("Repository")
-            .GetResult();
+        [Fact]
+        public void DTOs_Response_ShouldEndWith_Response()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.DTO.FieldMeasurement.FieldMeasurementResponse).Assembly)
+                .That()
+                .ResideInNamespace("Application.DTO")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All repositories should end with 'Repository'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
+            // Assert - DTOs devem ter nomenclatura consistente
+            foreach (var type in types)
+            {
+                var typeName = type.Name.Contains('`') ? type.Name.Substring(0, type.Name.IndexOf('`')) : type.Name;
 
-    [Fact]
-    public void Entities_Should_ResideIn_DomainEntities_Namespace()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Domain.Entities.Order).Assembly)
-            .That()
-            .Inherit(typeof(Domain.Common.BaseEntity))
-            .Should()
-            .ResideInNamespace("Domain.Entities")
-            .GetResult();
+                var hasValidSuffix = typeName.EndsWith("Request") ||
+                                   typeName.EndsWith("Response") ||
+                                   typeName.EndsWith("Parameters") ||
+                                   typeName == "Link" ||
+                                   typeName == "PagedResponse" ||
+                                   typeName == "ComponentHealth" ||
+                                   typeName == "HealthResponse";
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All entities should reside in Domain.Entities namespace. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
+                Assert.True(hasValidSuffix,
+                    $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");
+            }
+        }
 
-    [Fact]
-    public void Enums_Should_ResideIn_DomainEnums_Namespace()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Domain.Enums.OrderStatus).Assembly)
-            .That()
-            .ResideInNamespace("Domain.Enums")
-            .GetTypes()
-            .Where(t => t.IsEnum)
-            .ToList();
+        [Fact]
+        public void Repositories_ShouldEndWith_Repository()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Infrastructure.Repositories.FieldMeasurementRepository).Assembly)
+                .That()
+                .ResideInNamespace("Infrastructure.Repositories")
+                .And()
+                .AreClasses()
+                .Should()
+                .HaveNameEndingWith("Repository")
+                .GetResult();
 
-        // Assert
-        Assert.NotEmpty(types);
-        Assert.All(types, t => Assert.Equal("Domain.Enums", t.Namespace));
-    }
+            // Assert
+            Assert.True(result.IsSuccessful, "All repository classes should end with 'Repository'");
+        }
 
-    [Fact]
-    public void Exceptions_Should_HaveName_EndingWith_Exception()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Domain.Entities.Order).Assembly)
-            .That()
-            .Inherit(typeof(Exception))
-            .Should()
-            .HaveNameEndingWith("Exception")
-            .GetResult();
+        [Fact]
+        public void Entities_ShouldResideIn_DomainEntities()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Domain.Entities.FieldMeasurement).Assembly)
+                .That()
+                .Inherit(typeof(Domain.Common.BaseEntity))
+                .Should()
+                .ResideInNamespace("Domain.Entities")
+                .GetResult();
 
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All custom exceptions should end with 'Exception'. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
+            // Assert
+            Assert.True(result.IsSuccessful, "All entities should reside in Domain.Entities namespace");
+        }
+
+        [Fact]
+        public void Events_ShouldEndWith_Event()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Domain.Entities.FieldMeasurement).Assembly)
+                .That()
+                .ResideInNamespace("Domain.Events")
+                .And()
+                .AreClasses()
+                .And()
+                .DoNotHaveNameMatching("IDomainEvent")
+                .Should()
+                .HaveNameEndingWith("Event")
+                .GetResult();
+
+            // Assert
+            Assert.True(result.IsSuccessful, "All event classes should end with 'Event'");
+        }
     }
 }

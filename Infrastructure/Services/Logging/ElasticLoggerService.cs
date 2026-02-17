@@ -8,6 +8,10 @@ using System.Text.Json;
 
 namespace Infrastructure.Services.Logging
 {
+    /// <summary>
+    /// ServiÃ§o de logging para Elasticsearch.
+    /// Envia logs estruturados para Ã­ndices do Elastic.
+    /// </summary>
     public class ElasticLoggerService : ILoggerService
     {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -22,6 +26,8 @@ namespace Infrastructure.Services.Logging
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+
+            _logger.LogInformation("ElasticLoggerService initialized with endpoint: {Endpoint}", _settings.Endpoint);
         }
 
         public async Task LogRequestAsync(RequestLog logEntry)
@@ -62,25 +68,24 @@ namespace Infrastructure.Services.Logging
                 return;
             }
 
-            // Define o nome do índice baseado no tipo de log
-            // Isso cria índices separados para cada tipo (requests, traces, etc)
-            var indexPrefix = _settings.IndexPrefix ?? "app-logs";
+            var indexPrefix = _settings.IndexPrefix ?? "agro-logs";
             var indexName = logObject switch
             {
                 RequestLog => $"{indexPrefix}-requests",
                 _ => $"{indexPrefix}-general"
             };
 
-            // Extrai o LogId para usar como document ID no Elasticsearch
-            // Isso permite atualizar o mesmo documento (importante para UpdateRequestLogAsync)
+            var indexDate = DateTime.UtcNow.ToString("yyyy.MM.dd");
+            var fullIndexName = $"{indexName}-{indexDate}";
+
             var documentId = logObject switch
             {
                 RequestLog log => log.LogId.ToString(),
-                _ => null
+                _ => Guid.NewGuid().ToString()
             };
 
             var client = _httpClientFactory.CreateClient();
-            
+
             if (!string.IsNullOrWhiteSpace(_settings.ApiKey))
             {
                 client.DefaultRequestHeaders.Add("Authorization", $"ApiKey {_settings.ApiKey}");
@@ -88,33 +93,22 @@ namespace Infrastructure.Services.Logging
 
             var json = JsonSerializer.Serialize(logObject, new JsonSerializerOptions
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });
 
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            // Constrói o endpoint completo: base_url/index_name/_doc/document_id
             var baseUrl = _settings.Endpoint.TrimEnd('/');
-            
-            HttpResponseMessage response;
+            var url = $"{baseUrl}/{fullIndexName}/_doc/{documentId}";
 
-            if (!string.IsNullOrWhiteSpace(documentId))
-            {
-                // PUT com ID - Cria ou atualiza o documento com o ID específico
-                // Elasticsearch vai substituir o documento inteiro se já existir
-                var endpoint = $"{baseUrl}/{indexName}/_doc/{documentId}";
-                response = await client.PutAsync(endpoint, content);
-            }
-            else
-            {
-                // POST sem ID - Elasticsearch gera um ID automático
-                // Usado como fallback se o LogId estiver ausente
-                var endpoint = $"{baseUrl}/{indexName}/_doc";
-                response = await client.PostAsync(endpoint, content);
-            }
+            var response = await client.PutAsync(url, content);
 
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to send log to Elastic. Status: {Status}, Error: {Error}",
+                    response.StatusCode, error);
+            }
         }
     }
 }

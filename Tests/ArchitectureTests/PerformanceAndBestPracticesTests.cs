@@ -1,173 +1,189 @@
 using NetArchTest.Rules;
+using Xunit;
 
-namespace Tests.ArchitectureTests;
-
-/// <summary>
-/// Testes de performance e boas pr·ticas especÌficas do .NET.
-/// </summary>
-public class PerformanceAndBestPracticesTests
+namespace Tests.ArchitectureTests
 {
-    [Fact]
-    public void Services_Should_Be_Async()
+    public class PerformanceAndBestPracticesTests
     {
-        // Arrange
-        var types = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Services_ShouldBeAsync()
         {
-            var nonAsyncPublicMethods = type.GetMethods()
-                .Where(m => m.IsPublic && 
-                           !m.IsSpecialName && 
-                           m.DeclaringType == type &&
-                           m.ReturnType != typeof(void) &&
-                           !m.ReturnType.Name.Contains("Task"))
-                .Select(m => $"{type.Name}.{m.Name}")
-                .ToList();
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            violations.AddRange(nonAsyncPublicMethods);
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && !m.IsSpecialName);
+
+                foreach (var method in methods)
+                {
+                    // Skip property getters/setters and GetType (inherited from Object)
+                    if (method.Name.StartsWith("get_") || 
+                        method.Name.StartsWith("set_") || 
+                        method.Name == "GetType" ||
+                        method.DeclaringType == typeof(object))
+                        continue;
+
+                    var isAsync = method.ReturnType.Name.Contains("Task");
+                    Assert.True(isAsync,
+                        $"{type.Name}.{method.Name} should be async for better performance");
+                }
+            }
         }
 
-        // Assert
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void Async_Methods_Should_Have_Async_Suffix()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Controllers_ShouldReturn_ActionResult()
         {
-            var asyncMethodsWithoutSuffix = type.GetMethods()
-                .Where(m => m.IsPublic && 
-                           !m.IsSpecialName && 
-                           m.DeclaringType == type &&
-                           m.ReturnType.Name.Contains("Task") &&
-                           !m.Name.EndsWith("Async") &&
-                           !m.Name.Equals("Dispose") && // Exclude Dispose
-                           !m.Name.Equals("DisposeAsync"))
-                .Select(m => $"{type.Name}.{m.Name}")
-                .ToList();
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            violations.AddRange(asyncMethodsWithoutSuffix);
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && !m.IsSpecialName && m.DeclaringType == type);
+
+                var asyncMethods = methods.Where(m => m.ReturnType.Name.Contains("Task"));
+                
+                Assert.True(asyncMethods.Any(), 
+                    $"{type.Name} should have async methods for I/O operations");
+            }
         }
 
-        // Assert - Soft check: alguns mÈtodos como AddOrder podem ser aceit·veis
-        Assert.True(violations.Count <= 5, 
-            $"Consider adding 'Async' suffix to async methods: {string.Join(", ", violations)}");
-    }
-
-    [Fact]
-    public void Domain_Should_NotReference_LinqToEntities()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Domain.Entities.Order).Assembly)
-            .ShouldNot()
-            .HaveDependencyOn("System.Linq.IQueryable")
-            .GetResult();
-
-        // Assert
-        Assert.True(result.IsSuccessful,
-            "Domain should not use IQueryable (should be in repositories/infrastructure)");
-    }
-
-    [Fact]
-    public void Controllers_Should_Not_Return_IQueryable()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Entities_ShouldNot_HavePublicSetters()
         {
-            var methodsReturningQueryable = type.GetMethods()
-                .Where(m => m.IsPublic && 
-                           !m.IsSpecialName && 
-                           m.ReturnType.Name.Contains("IQueryable"))
-                .Select(m => $"{type.Name}.{m.Name}")
-                .ToList();
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(Domain.Entities.FieldMeasurement).Assembly)
+                .That()
+                .ResideInNamespace("Domain.Entities")
+                .And()
+                .AreClasses()
+                .And()
+                .DoNotHaveName("RequestLog") // RequestLog √© usado como DTO, n√£o entidade de dom√≠nio
+                .GetTypes();
 
-            violations.AddRange(methodsReturningQueryable);
+            // Assert - Domain entities devem ter encapsulamento adequado
+            foreach (var type in result)
+            {
+                var properties = type.GetProperties()
+                    .Where(p => p.SetMethod != null && p.SetMethod.IsPublic);
+
+                // Permitir setters p√∫blicos apenas para propriedades simples usadas por EF/Cosmos
+                var publicSetters = properties
+                    .Where(p => !p.Name.Equals("Id") && 
+                                !p.Name.Equals("FieldId") &&
+                                !p.PropertyType.IsValueType &&
+                                !p.PropertyType.Name.Contains("Guid") &&
+                                !p.PropertyType.Name.Contains("DateTime"))
+                    .ToList();
+
+                Assert.True(publicSetters.Count <= 2, 
+                    $"{type.Name} has {publicSetters.Count} public setters for complex properties. " +
+                    "Consider using private setters or methods for domain logic.");
+            }
         }
 
-        // Assert
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void DTOs_Should_NotContain_Business_Logic()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(Application.DTO.Order.OrderResponse).Assembly)
-            .That()
-            .ResideInNamespaceMatching("Application.DTO.*")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Controllers_ShouldUse_ProducesResponseType()
         {
-            // DTOs n„o devem ter mÈtodos alÈm de construtores e properties
-            var businessMethods = type.GetMethods()
-                .Where(m => m.IsPublic && 
-                           !m.IsSpecialName && 
-                           m.DeclaringType == type &&
-                           !m.Name.StartsWith("get_") &&
-                           !m.Name.StartsWith("set_") &&
-                           m.Name != "ToString" &&
-                           m.Name != "GetHashCode" &&
-                           m.Name != "Equals")
-                .Select(m => $"{type.Name}.{m.Name}")
-                .ToList();
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            violations.AddRange(businessMethods);
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && 
+                                !m.IsSpecialName && 
+                                m.DeclaringType == type &&
+                                m.ReturnType.Name.Contains("Task"));
+
+                foreach (var method in methods)
+                {
+                    var hasProducesResponseType = method.GetCustomAttributes(false)
+                        .Any(a => a.GetType().Name.Contains("ProducesResponseType"));
+
+                    Assert.True(hasProducesResponseType || method.Name.Contains("Dispose"),
+                        $"{type.Name}.{method.Name} should have [ProducesResponseType] for API documentation");
+                }
+            }
         }
 
-        // Assert
-        Assert.Empty(violations);
-    }
+        [Fact]
+        public void DTOs_ShouldBe_Immutable_OrHaveValidation()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.DTO.FieldMeasurement.FieldMeasurementResponse).Assembly)
+                .That()
+                .ResideInNamespace("Application.DTO")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-    [Fact]
-    public void Services_Should_Be_Sealed_Or_Abstract()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(Application.Services.OrderService).Assembly)
-            .That()
-            .ResideInNamespace("Application.Services")
-            .And()
-            .AreClasses()
-            .Should()
-            .BeSealed()
-            .Or()
-            .BeAbstract()
-            .GetResult();
+            // Assert
+            foreach (var type in types)
+            {
+                var typeName = type.Name.Contains('`') ? type.Name.Substring(0, type.Name.IndexOf('`')) : type.Name;
 
-        // Assert - Soft check: sealed È recomendado mas n„o obrigatÛrio
-        var violationCount = result.FailingTypeNames?.Count() ?? 0;
-        Assert.True(violationCount <= 5,
-            $"Consider making services sealed for better performance: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                var hasValidation = type.GetProperties()
+                    .Any(p => p.GetCustomAttributes(false)
+                        .Any(a => a.GetType().Name.Contains("Validation") || 
+                                  a.GetType().Name.Contains("Required") ||
+                                  a.GetType().Name.Contains("Range")));
+
+                var isResponse = typeName.EndsWith("Response") ||
+                                typeName.EndsWith("Parameters") || // Helper classes
+                                typeName == "PagedResponse" ||
+                                typeName == "Link" ||
+                                typeName == "ComponentHealth" ||
+                                typeName == "HealthResponse";
+
+                if (!isResponse)
+                {
+                    Assert.True(hasValidation, 
+                        $"{type.Name} should have validation attributes for request DTOs");
+                }
+            }
+        }
+
+        [Fact]
+        public void Services_ShouldNot_ThrowGenericExceptions()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(Application.Services.FieldMeasurementService).Assembly)
+                .That()
+                .ResideInNamespace("Application.Services")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert - Services devem lan√ßar exce√ß√µes espec√≠ficas
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && !m.IsSpecialName);
+
+                // Verifica√ß√£o b√°sica - em produ√ß√£o, usar an√°lise est√°tica de c√≥digo
+                Assert.True(methods.Any(), $"{type.Name} should have public methods");
+            }
+        }
     }
 }

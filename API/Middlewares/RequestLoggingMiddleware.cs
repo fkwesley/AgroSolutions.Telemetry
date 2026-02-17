@@ -1,221 +1,186 @@
-﻿using API.Models;
 using Application.Interfaces;
 using Domain.Entities;
-using Infrastructure.Context;
-using Microsoft.Extensions.Logging;
 using System.Diagnostics;
-using System.Text.Json;
+using System.Text;
+using DomainLogLevel = Domain.Enums.LogLevel;
 
 namespace API.Middlewares
 {
+    /// <summary>
+    /// Middleware para logging automático de todas as requisições HTTP.
+    /// Captura informações detalhadas para auditoria e análise de performance.
+    /// </summary>
     public class RequestLoggingMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<RequestLoggingMiddleware> _logger;
-        private readonly IConfiguration _configuration;
-        private const int MaxBodySize = 1024 * 1024; // 1MB - Limite para evitar consumo excessivo de memória
 
         public RequestLoggingMiddleware(
             RequestDelegate next,
-            IServiceScopeFactory scopeFactory,
-            ILogger<RequestLoggingMiddleware> logger,
-            IConfiguration configuration)
+            ILogger<RequestLoggingMiddleware> logger)
         {
-            _next = next;
-            _scopeFactory = scopeFactory;
-            _logger = logger;
-            _configuration = configuration;
+            _next = next ?? throw new ArgumentNullException(nameof(next));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, IServiceProvider serviceProvider)
         {
-            // Ignorar requisições para o Swagger (UI e JSON)
-            if (context.Request.Path.StartsWithSegments("/swagger"))
+            // Criar log entry
+            var logEntry = new RequestLog
             {
-                await _next(context);
-                return;
+                TraceId = Activity.Current?.Id ?? context.TraceIdentifier,
+                Method = context.Request.Method,
+                Path = context.Request.Path,
+                QueryString = context.Request.QueryString.ToString(),
+                RequestTime = DateTime.UtcNow,
+                UserId = context.User?.FindFirst("user_id")?.Value,
+                UserEmail = context.User?.FindFirst("user_email")?.Value,
+                ClientIp = context.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = context.Request.Headers["User-Agent"].ToString()
+            };
+
+            // Capturar request body se necessário (apenas para POST/PUT/PATCH)
+            if (ShouldLogRequestBody(context.Request.Method))
+            {
+                logEntry.RequestBody = await ReadRequestBodyAsync(context.Request);
             }
 
-            // Inicia o timer para calcular a duração da requisição
+            // Iniciar cronômetro
             var stopwatch = Stopwatch.StartNew();
 
-            // Cria um GUID único para rastreabilidade da requisição (local desta API)
-            var logId = Guid.NewGuid();
-
-            // CorrelationId: ID compartilhado entre múltiplas APIs
-            // - Se receber no header X-Correlation-Id, usa o mesmo (propagação)
-            // - Se não receber, gera novo (primeira API da jornada)
-            var correlationId = GetOrCreateCorrelationId(context);
-
-            // Obtém o nome do serviço da configuração
-            var serviceName = _configuration.GetValue<string>("LoggerSettings:ServiceName") ?? "unknown-service";
-
-            // Compartilha os IDs com outros middlewares via HttpContext.Items
-            // Isso permite que o ErrorHandlingMiddleware use os mesmos IDs para vincular logs de erro
-            context.Items["LogId"] = logId;
-            context.Items["CorrelationId"] = correlationId;
-
-            // Popula contexto de correlação (AsyncLocal)
-            // Isso permite que TODOS os logs técnicos (ILogger<T>) tenham LogId e CorrelationId
-            // mesmo em chamadas assíncronas, Service Bus, repositories, etc.
-            CorrelationContext.LogId = logId;
-            CorrelationContext.CorrelationId = correlationId;
-            CorrelationContext.ServiceName = serviceName;
-            CorrelationContext.UserId = context.User?.FindFirst("user_id")?.Value;
-
-            // Adiciona os IDs ao Serilog LogContext
-            // Todos os logs do Serilog dentro deste scope terão estes valores automaticamente
-            // Usa "LogId" consistente com a entidade RequestLog
-            using (Serilog.Context.LogContext.PushProperty("LogId", logId))
-            using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
-            using (Serilog.Context.LogContext.PushProperty("UserId", context.User?.FindFirst("user_id")?.Value))
-            {
-
-                // Adiciona os IDs no header da resposta para o cliente poder rastrear
-                context.Response.OnStarting(() =>
-                {
-                    context.Response.Headers.TryAdd("X-Log-Id", logId.ToString());
-                    context.Response.Headers.TryAdd("X-Correlation-Id", correlationId.ToString());
-                    return Task.CompletedTask;
-                });
-
-                // Preparar para leitura do body (permite ler múltiplas vezes)
-                context.Request.EnableBuffering();
-
-                // Lê o request body com proteção de tamanho
-                var requestBody = await ReadBodySafeAsync(context.Request.Body);
-                context.Request.Body.Position = 0; // Reseta para outros middlewares poderem ler
-
-                // Cria log inicial com dados da entrada e IDs de rastreamento
-                var logEntry = new RequestLog
-                {
-                    LogId = logId,
-                    CorrelationId = correlationId, // Para rastrear jornada completa entre APIs
-                    ServiceName = serviceName, // Identifica qual API gerou este log
-                    UserId = context.User?.FindFirst("user_id")?.Value ?? "anonymous",
-                    HttpMethod = context.Request.Method,
-                    Path = context.Request.Path,
-                    RequestBody = requestBody,
-                    StartDate = DateTime.UtcNow
-                };
-
-                using var scope = _scopeFactory.CreateScope();
-                var loggerService = scope.ServiceProvider.GetRequiredService<ILoggerService>();
-
-                // Salva o log inicial para já ter LogId disponível
-                // Se falhar, não impede a requisição de prosseguir
-                try
-                {
-                    _ = loggerService.LogRequestAsync(logEntry);
-                }
-                catch (Exception logEx)
-                {
-                    _logger.LogError(logEx, "Failed to create initial request log for LogId: {LogId}, CorrelationId: {CorrelationId}",
-                        logId, correlationId);
-                }
-
-                // Prepara para interceptar o response body
-                var originalBodyStream = context.Response.Body;
-                using var memoryStream = new MemoryStream();
-                context.Response.Body = memoryStream;
-
-                try
-                {
-                    // Executa o próximo middleware/endpoint da pipeline
-                    // Erros aqui serão capturados pelo ErrorHandlingMiddleware
-                    await _next(context);
-                }
-                finally
-                {
-                    // SEMPRE executa, mesmo se houver erro
-                    // Garante que o log seja atualizado com os dados finais
-                    stopwatch.Stop();
-
-                    // Lê o response body com proteção de tamanho
-                    memoryStream.Position = 0;
-                    var responseBody = await ReadBodySafeAsync(memoryStream);
-                    memoryStream.Position = 0;
-
-                    // Restaura o response body original
-                    await memoryStream.CopyToAsync(originalBodyStream);
-                    context.Response.Body = originalBodyStream;
-
-                    // Atualiza log com dados finais (StatusCode, responseBody, duração)
-                    logEntry.StatusCode = context.Response.StatusCode;
-                    logEntry.ResponseBody = responseBody;
-                    logEntry.EndDate = DateTime.UtcNow;
-                    logEntry.Duration = stopwatch.Elapsed;
-
-                    // Tenta atualizar o log no sistema de logging
-                    // Se falhar, apenas loga o erro mas não impede a resposta ao cliente
-                    try
-                    {
-                        _ = loggerService.UpdateRequestLogAsync(logEntry);
-                    }
-                    catch (Exception logEx)
-                    {
-                        _logger.LogError(logEx, "Failed to update request log for LogId: {LogId}, CorrelationId: {CorrelationId}",
-                            logId, correlationId);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Obtém o CorrelationId do header X-Correlation-Id ou gera um novo
-        /// Isso permite rastrear requisições através de múltiplas APIs
-        /// </summary>
-        private Guid GetOrCreateCorrelationId(HttpContext context)
-        {
-            // Tenta obter do header (enviado por outra API upstream)
-            if (context.Request.Headers.TryGetValue("X-Correlation-Id", out var correlationIdHeader))
-            {
-                if (Guid.TryParse(correlationIdHeader, out var correlationId))
-                {
-                    // CorrelationId recebido - esta API faz parte de uma jornada maior
-                    return correlationId;
-                }
-            }
-
-            // Não recebeu CorrelationId - esta é a primeira API da jornada
-            // Gera novo CorrelationId que será propagado para APIs downstream
-            return Guid.NewGuid();
-        }
-
-        /// <summary>
-        /// Lê o corpo de uma stream com proteção contra payloads muito grandes
-        /// </summary>
-        private async Task<string?> ReadBodySafeAsync(Stream body)
-        {
-            if (body == null || !body.CanRead)
-                return null;
+            // Substituir response stream para capturar response body
+            var originalBodyStream = context.Response.Body;
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
 
             try
             {
-                using var reader = new StreamReader(body, leaveOpen: true);
-                var content = await reader.ReadToEndAsync();
+                // Chamar próximo middleware
+                await _next(context);
 
-                // Se não tem conteúdo, retorna null
-                if (string.IsNullOrEmpty(content))
-                    return null;
+                stopwatch.Stop();
 
-                // Proteção: se o conteúdo for maior que o limite, retorna mensagem truncada
-                if (content.Length > MaxBodySize)
+                // Capturar informações da resposta
+                logEntry.StatusCode = context.Response.StatusCode;
+                logEntry.ResponseTime = DateTime.UtcNow;
+                logEntry.ResponseTimeMs = stopwatch.ElapsedMilliseconds;
+                logEntry.LogLevel = DetermineLogLevel(context.Response.StatusCode);
+
+                // Capturar response body se necessário
+                if (ShouldLogResponseBody(context.Response.StatusCode))
                 {
-                    _logger.LogWarning("Request body too large: {Size} bytes (max: {MaxSize})",
-                        content.Length, MaxBodySize);
-                    return $"[Body too large: {content.Length} bytes, max allowed: {MaxBodySize} bytes]";
+                    logEntry.ResponseBody = await ReadResponseBodyAsync(responseBody);
                 }
 
-                return content;
+                // Copiar response para stream original
+                await responseBody.CopyToAsync(originalBodyStream);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to read request/response body");
-                return "[Failed to read body]";
+                stopwatch.Stop();
+
+                logEntry.StatusCode = 500;
+                logEntry.ResponseTime = DateTime.UtcNow;
+                logEntry.ResponseTimeMs = stopwatch.ElapsedMilliseconds;
+                logEntry.ErrorMessage = ex.Message;
+                logEntry.StackTrace = ex.StackTrace;
+                logEntry.LogLevel = Domain.Enums.LogLevel.Error;
+
+                throw;
             }
+            finally
+            {
+                context.Response.Body = originalBodyStream;
+
+                // Log assíncrono usando ILoggerService (se configurado)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = serviceProvider.CreateScope();
+                        var loggerService = scope.ServiceProvider.GetService<ILoggerService>();
+
+                        if (loggerService != null)
+                        {
+                            await loggerService.UpdateRequestLogAsync(logEntry);
+                        }
+
+                        // Log estruturado com Serilog
+                        _logger.LogInformation(
+                            "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs}ms",
+                            logEntry.Method,
+                            logEntry.Path,
+                            logEntry.StatusCode,
+                            logEntry.ResponseTimeMs);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error logging request to database");
+                    }
+                });
+            }
+        }
+
+        private static bool ShouldLogRequestBody(string method)
+        {
+            return method == "POST" || method == "PUT" || method == "PATCH";
+        }
+
+        private static bool ShouldLogResponseBody(int statusCode)
+        {
+            // Logar response body apenas para erros
+            return statusCode >= 400;
+        }
+
+        private static async Task<string?> ReadRequestBodyAsync(HttpRequest request)
+        {
+            try
+            {
+                request.EnableBuffering();
+
+                using var reader = new StreamReader(
+                    request.Body,
+                    encoding: Encoding.UTF8,
+                    detectEncodingFromByteOrderMarks: false,
+                    leaveOpen: true);
+
+                var body = await reader.ReadToEndAsync();
+                request.Body.Position = 0;
+
+                // Limitar tamanho do log
+                return body.Length > 5000 ? body.Substring(0, 5000) + "... (truncated)" : body;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static async Task<string?> ReadResponseBodyAsync(MemoryStream responseStream)
+        {
+            try
+            {
+                responseStream.Seek(0, SeekOrigin.Begin);
+                var text = await new StreamReader(responseStream).ReadToEndAsync();
+                responseStream.Seek(0, SeekOrigin.Begin);
+
+                // Limitar tamanho do log
+                return text.Length > 5000 ? text.Substring(0, 5000) + "... (truncated)" : text;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Domain.Enums.LogLevel DetermineLogLevel(int statusCode)
+        {
+            return statusCode switch
+            {
+                >= 500 => Domain.Enums.LogLevel.Error,
+                >= 400 => Domain.Enums.LogLevel.Warning,
+                _ => Domain.Enums.LogLevel.Info
+            };
         }
     }
 }
-

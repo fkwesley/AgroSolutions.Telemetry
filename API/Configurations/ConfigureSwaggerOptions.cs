@@ -75,13 +75,13 @@ namespace API.Configurations
         {
             var info = new OpenApiInfo
             {
-                Title = "FCG.Orders.API",
+                Title = "AgroSolutions.Telemetry.API",
                 Version = description.ApiVersion.ToString(),
-                Description = "API for managing game orders",
+                Description = "API para recebimento e processamento de dados de telemetria de sensores térmicos de campo agrícola.",
                 Contact = new OpenApiContact
                 {
-                    Name = "FCG Team",
-                    Email = "support@fcg.com"
+                    Name = "AgroSolutions Team",
+                    Email = "support@agrosolutions.com"
                 }
             };
 

@@ -1,128 +1,154 @@
 using NetArchTest.Rules;
+using Xunit;
 
-namespace Tests.ArchitectureTests;
-
-/// <summary>
-/// Testes de API design e versionamento.
-/// </summary>
-public class ApiDesignTests
+namespace Tests.ArchitectureTests
 {
-    [Fact]
-    public void Controllers_Should_Have_ApiController_Attribute()
+    public class ApiDesignTests
     {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith("Controller")
-            .Should()
-            .HaveCustomAttribute(typeof(Microsoft.AspNetCore.Mvc.ApiControllerAttribute))
-            .GetResult();
-
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All controllers should have [ApiController] attribute. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
-
-    [Fact]
-    public void Controllers_Should_Have_Route_Attribute()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith("Controller")
-            .Should()
-            .HaveCustomAttribute(typeof(Microsoft.AspNetCore.Mvc.RouteAttribute))
-            .GetResult();
-
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All controllers should have [Route] attribute. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
-
-    [Fact]
-    public void Controllers_Should_Inherit_ControllerBase()
-    {
-        // Arrange & Act
-        var result = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .HaveNameEndingWith("Controller")
-            .Should()
-            .Inherit(typeof(Microsoft.AspNetCore.Mvc.ControllerBase))
-            .GetResult();
-
-        // Assert
-        Assert.True(result.IsSuccessful,
-            $"All controllers should inherit from ControllerBase. Violations: {string.Join(", ", result.FailingTypeNames ?? [])}");
-    }
-
-    [Fact]
-    public void API_Controllers_Should_Be_In_Versioned_Namespaces()
-    {
-        // Arrange & Act
-        var types = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespaceStartingWith("API.Controllers")
-            .And()
-            .AreClasses()
-            .And()
-            .HaveNameEndingWith("Controller")
-            .GetTypes();
-
-        var violations = types
-            .Where(t => !t.Namespace!.Contains(".v1") && 
-                       !t.Namespace.Contains(".v2") &&
-                       !t.Namespace.Contains(".v3"))
-            .Select(t => t.FullName)
-            .ToList();
-
-        // Assert
-        Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void Controllers_Should_Have_XML_Documentation()
-    {
-        // Arrange
-        var types = Types.InAssembly(typeof(API.Controllers.v2.OrdersController).Assembly)
-            .That()
-            .ResideInNamespace("API.Controllers")
-            .And()
-            .AreClasses()
-            .GetTypes();
-
-        var violations = new List<string>();
-
-        foreach (var type in types)
+        [Fact]
+        public void Controllers_ShouldHave_RouteAttribute()
         {
-            var publicMethods = type.GetMethods()
-                .Where(m => m.IsPublic && 
-                           !m.IsSpecialName && 
-                           m.DeclaringType == type &&
-                           !m.Name.Equals("ToString") &&
-                           !m.Name.Equals("GetHashCode") &&
-                           !m.Name.Equals("Equals"))
-                .ToList();
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
 
-            // Este é um teste de intenção - você precisaria de análise de XML docs real
-            // Por enquanto, verifica que o método não é trivial demais
-            if (publicMethods.Any() && type.GetCustomAttributes(false).Length < 2)
+            // Assert
+            foreach (var type in result)
             {
-                violations.Add($"{type.Name} might be missing XML documentation");
+                var hasRouteAttribute = type.GetCustomAttributes(false)
+                    .Any(a => a.GetType().Name.Contains("Route"));
+
+                Assert.True(hasRouteAttribute, 
+                    $"{type.Name} should have [Route] attribute for RESTful routing");
             }
         }
 
-        // Assert - Soft check
-        Assert.True(violations.Count < types.Count() / 2, 
-            "Many controllers seem to be missing XML documentation");
+        [Fact]
+        public void Controllers_ShouldHave_ApiControllerAttribute()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in result)
+            {
+                var hasApiController = type.GetCustomAttributes(false)
+                    .Any(a => a.GetType().Name.Contains("ApiController"));
+
+                Assert.True(hasApiController, 
+                    $"{type.Name} should have [ApiController] attribute for automatic model validation");
+            }
+        }
+
+        [Fact]
+        public void ControllerActions_ShouldHave_HttpMethodAttribute()
+        {
+            // Arrange & Act
+            var result = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in result)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && 
+                                !m.IsSpecialName && 
+                                m.DeclaringType == type &&
+                                m.ReturnType.Name.Contains("Task"));
+
+                foreach (var method in methods)
+                {
+                    var hasHttpMethod = method.GetCustomAttributes(false)
+                        .Any(a => a.GetType().Name.Contains("Http"));
+
+                    Assert.True(hasHttpMethod || method.Name.Contains("Dispose"),
+                        $"{type.Name}.{method.Name} should have HTTP method attribute ([HttpGet], [HttpPost], etc.)");
+                }
+            }
+        }
+
+        [Fact]
+        public void Controllers_ShouldFollow_RESTNamingConventions()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && !m.IsSpecialName && m.DeclaringType == type);
+
+                var methodNames = methods.Select(m => m.Name).ToList();
+
+                // Verificar convenÃ§Ãµes REST comuns
+                var hasRestVerbs = methodNames.Any(n => 
+                    n.StartsWith("Get") || 
+                    n.StartsWith("Post") || 
+                    n.StartsWith("Put") || 
+                    n.StartsWith("Delete") || 
+                    n.StartsWith("Patch") ||
+                    n.Contains("Add") ||
+                    n.Contains("Update") ||
+                    n.Contains("Remove"));
+
+                Assert.True(hasRestVerbs || !methodNames.Any(), 
+                    $"{type.Name} should follow REST naming conventions (Get, Post, Put, Delete, Patch)");
+            }
+        }
+
+        [Fact]
+        public void Controllers_ShouldReturn_ProperStatusCodes()
+        {
+            // Arrange & Act
+            var types = Types.InAssembly(typeof(API.Controllers.v1.FieldMeasurementsController).Assembly)
+                .That()
+                .ResideInNamespace("API.Controllers")
+                .And()
+                .AreClasses()
+                .GetTypes();
+
+            // Assert
+            foreach (var type in types)
+            {
+                var methods = type.GetMethods()
+                    .Where(m => m.IsPublic && 
+                                !m.IsSpecialName && 
+                                m.DeclaringType == type);
+
+                foreach (var method in methods)
+                {
+                    var attributes = method.GetCustomAttributes(false);
+                    var httpMethod = attributes.FirstOrDefault(a => a.GetType().Name.StartsWith("Http"));
+
+                    if (httpMethod != null)
+                    {
+                        var hasProducesResponseType = attributes
+                            .Any(a => a.GetType().Name.Contains("ProducesResponseType"));
+
+                        Assert.True(hasProducesResponseType || method.Name.Contains("Dispose"),
+                            $"{type.Name}.{method.Name} should document expected HTTP status codes with [ProducesResponseType]");
+                    }
+                }
+            }
+        }
     }
 }

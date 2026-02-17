@@ -60,7 +60,7 @@ public static class SwaggerConfiguration
             {
                 options.SwaggerEndpoint(
                     $"/swagger/{description.GroupName}/swagger.json",
-                    $"FCG.Orders.API {description.GroupName.ToUpperInvariant()}"
+                    $"AgroSolutions.Telemetry.API {description.GroupName.ToUpperInvariant()}"
                 );
             }
 
