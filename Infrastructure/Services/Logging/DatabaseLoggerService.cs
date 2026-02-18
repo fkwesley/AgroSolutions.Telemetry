@@ -31,10 +31,10 @@ namespace Infrastructure.Services.Logging
             // Delega para Serilog (que envia para Elastic via configuração)
             _logger.LogInformation(
                 "HTTP {Method} {Path} | Status: {StatusCode} | Duration: {Duration}ms | User: {UserId}",
-                logEntry.Method,
+                logEntry.HttpMethod,
                 logEntry.Path,
                 logEntry.StatusCode,
-                logEntry.ResponseTimeMs,
+                logEntry.Duration,
                 logEntry.UserId ?? "anonymous");
 
             return Task.CompletedTask;
@@ -50,10 +50,10 @@ namespace Infrastructure.Services.Logging
             // Delega para Serilog (que envia para Elastic via configuração)
             _logger.LogInformation(
                 "HTTP {Method} {Path} | Status: {StatusCode} | Duration: {Duration}ms | User: {UserId}",
-                logEntry.Method,
+                logEntry.HttpMethod,
                 logEntry.Path,
                 logEntry.StatusCode,
-                logEntry.ResponseTimeMs,
+                logEntry.Duration,
                 logEntry.UserId ?? "anonymous");
 
             return Task.CompletedTask;

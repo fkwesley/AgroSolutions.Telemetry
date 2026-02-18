@@ -91,7 +91,7 @@ namespace Infrastructure.Services.Logging
                         {
                             RequestLog requestLog => new
                             {
-                                message = $"{requestLog.Method} {requestLog.Path} - {requestLog.StatusCode}",
+                                message = $"{requestLog.HttpMethod} {requestLog.Path} - {requestLog.StatusCode}",
                                 attributes = (object)requestLog
                             },
                             _ => new { message = "Unknown log type", attributes = logObject }

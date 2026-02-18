@@ -1,38 +1,25 @@
-using Domain.Common;
-using Domain.Enums;
+using System.Collections.Generic;
 
 namespace Domain.Entities
 {
-    /// <summary>
-    /// Entidade para armazenar logs de requisições HTTP.
-    /// Usada para auditoria e análise de uso da API.
-    /// NOTA: Esta classe tem setters públicos por ser usada como DTO no middleware.
-    /// </summary>
-    public class RequestLog : BaseEntity
+    public class RequestLog
     {
-        public Guid LogId { get; set; }
-        public string TraceId { get; set; } = string.Empty;
-        public string Method { get; set; } = string.Empty;
-        public string Path { get; set; } = string.Empty;
-        public string? QueryString { get; set; }
-        public int StatusCode { get; set; }
-        public long ResponseTimeMs { get; set; }
-        public DateTime RequestTime { get; set; }
-        public DateTime? ResponseTime { get; set; }
-        public string? UserId { get; set; }
-        public string? UserEmail { get; set; }
-        public string? RequestBody { get; set; }
-        public string? ResponseBody { get; set; }
-        public string? ErrorMessage { get; set; }
-        public string? StackTrace { get; set; }
-        public LogLevel LogLevel { get; set; }
-        public string? ClientIp { get; set; }
-        public string? UserAgent { get; set; }
+        public Guid LogId { get; set; } = Guid.NewGuid();
 
-        public RequestLog()
-        {
-            LogId = Guid.NewGuid();
-            RequestTime = DateTime.UtcNow;
-        }
+        // CorrelationId: ID compartilhado entre múltiplas APIs para rastrear toda a jornada
+        public Guid CorrelationId { get; set; }
+
+        // ServiceName: Identifica qual API/serviço gerou este log
+        public required string ServiceName { get; set; }
+
+        public required string UserId { get; set; }
+        public required string HttpMethod { get; set; }
+        public required string Path { get; set; }
+        public int StatusCode { get; set; }
+        public string? RequestBody { get; set; } = null;
+        public string? ResponseBody { get; set; } = null;
+        public DateTime StartDate { get; set; } = DateTime.UtcNow;
+        public DateTime EndDate { get; set; }
+        public TimeSpan Duration { get; set; }
     }
 }
