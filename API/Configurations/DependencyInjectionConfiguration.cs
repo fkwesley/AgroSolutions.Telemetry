@@ -1,9 +1,11 @@
+using Application.Configuration;
 using Application.EventHandlers;
 using Application.Interfaces;
 using Application.Services;
 using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
+using Domain.Services;
 using Elastic.Apm.NetCoreAll;
 using Infrastructure.Factories;
 using Infrastructure.Repositories;
@@ -34,10 +36,28 @@ public static class DependencyInjectionConfiguration
         builder.Services.Configure<NewRelicLoggerSettings>(builder.Configuration.GetSection("NewRelic"));
         builder.Services.Configure<ElasticLoggerSettings>(builder.Configuration.GetSection("ElasticLogs"));
 
+        // Analysis Settings - usando defaults do código (AlertSettings.cs)
+        // Não há binding com appsettings.json - valores fixos no código
+        builder.Services.AddSingleton(new AnalysisSettings());
+        builder.Services.AddSingleton(new ExcessiveRainfallSettings());
+        builder.Services.AddSingleton(new ExtremeHeatSettings());
+        builder.Services.AddSingleton(new FreezingTemperatureSettings());
+        builder.Services.AddSingleton(new DroughtAlertSettings());
+        builder.Services.AddSingleton(new IrrigationSettings());
+        builder.Services.AddSingleton(new HeatStressSettings());
+        builder.Services.AddSingleton(new PestRiskSettings());
+
         // Elastic Services (Generic)
         builder.Services.AddSingleton<IElasticService, ElasticService>();
 
         // Domain Services
+        // #DDD - Domain Services encapsulam lógica de negócio complexa que não cabe em uma única entidade
+        builder.Services.AddScoped<IDroughtDetectionService, DroughtDetectionService>();
+        builder.Services.AddScoped<IIrrigationRecommendationService, IrrigationRecommendationService>();
+        builder.Services.AddScoped<IHeatStressAnalysisService, HeatStressAnalysisService>();
+        builder.Services.AddScoped<IPestRiskAnalysisService, PestRiskAnalysisService>();
+
+        // Application Services
         builder.Services.AddScoped<IFieldMeasurementService, FieldMeasurementService>();
         
         // Health Check Services
@@ -54,8 +74,21 @@ public static class DependencyInjectionConfiguration
 
         // Domain Event Dispatcher & Handlers
         builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+
+        // Event Handlers - Elasticsearch sync
         builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ElasticMeasurementEventHandler>();
-        builder.Services.AddScoped<IDomainEventHandler<DroughtAlertRequiredEvent>, DroughtAlertRequiredEventHandler>();
+
+        // Event Handlers - Immediate Analysis (no history required)
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ExcessiveRainfallAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ExtremeHeatAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, FreezingTemperatureAnalysisEventHandler>();
+
+        // Event Handlers - Historical Analysis (fetches history + analyzes)
+        // Para adicionar nova análise: criar handler + registrar aqui!
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, DroughtAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, IrrigationAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, HeatStressAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, PestRiskAnalysisEventHandler>();
 
         // Logger Services
         ConfigureLoggerService(builder);

@@ -70,7 +70,7 @@ namespace API.Controllers.v1
         }
 
         /// <summary>
-        /// Returns paginated measurements with HATEOAS navigation links.
+        /// Returns paginated measurements.
         /// </summary>
         /// <param name="page">Page number (default: 1)</param>
         /// <param name="pageSize">Page size (default: 10)</param>

@@ -122,6 +122,8 @@ namespace Tests.ArchitectureTests
                 .ResideInNamespace("Infrastructure.Repositories")
                 .And()
                 .AreClasses()
+                .And()
+                .DoNotHaveName("CosmosSystemTextJsonSerializer") // Exclude serializer (has sync methods by design)
                 .GetTypes();
 
             // Assert
@@ -131,7 +133,7 @@ namespace Tests.ArchitectureTests
                     .Where(m => m.IsPublic && !m.IsSpecialName);
 
                 var asyncMethods = methods.Where(m => m.ReturnType.Name.Contains("Task"));
-                
+
                 Assert.True(asyncMethods.Any() || !methods.Any(), 
                     $"{type.Name} should use async methods for I/O operations");
             }

@@ -1,0 +1,87 @@
+using Application.EventHandlers;
+using Application.Interfaces;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using FieldMeasurement = global::Domain.Entities.FieldMeasurement;
+using MeasurementCreatedEvent = global::Domain.Events.MeasurementCreatedEvent;
+
+namespace Tests.UnitTests.Application.EventHandlers
+{
+    public class ExcessiveRainfallAnalysisEventHandlerTests
+    {
+        private readonly Mock<IMessagePublisherFactory> _publisherFactoryMock;
+        private readonly Mock<IMessagePublisher> _publisherMock;
+        private readonly Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>> _loggerMock;
+        private readonly global::Application.Configuration.ExcessiveRainfallSettings _settings;
+        private readonly ExcessiveRainfallAnalysisEventHandler _handler;
+
+        public ExcessiveRainfallAnalysisEventHandlerTests()
+        {
+            _publisherFactoryMock = new Mock<IMessagePublisherFactory>();
+            _publisherMock = new Mock<IMessagePublisher>();
+            _loggerMock = new Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>>();
+            _settings = new global::Application.Configuration.ExcessiveRainfallSettings { Threshold = 60 };
+
+            _publisherFactoryMock
+                .Setup(x => x.GetPublisher("ServiceBus"))
+                .Returns(_publisherMock.Object);
+
+            _handler = new ExcessiveRainfallAnalysisEventHandler(
+                _publisherFactoryMock.Object,
+                _loggerMock.Object,
+                _settings);
+        }
+
+        [Fact]
+        public async Task HandleAsync_WhenPrecipitationExceedsThreshold_ShouldPublishAlert()
+        {
+            // Arrange
+            var measurement = new FieldMeasurement(1, 50, 25, 75, DateTime.UtcNow); // 75mm > 60mm threshold
+            var measurementEvent = new MeasurementCreatedEvent(measurement);
+
+            // Act
+            await _handler.HandleAsync(measurementEvent);
+
+            // Assert - Verify that message was published, without checking content
+            _publisherMock.Verify(
+                x => x.PublishMessageAsync("alert-required-queue", It.IsAny<object>(), null),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task HandleAsync_WhenPrecipitationBelowThreshold_ShouldNotPublishAlert()
+        {
+            // Arrange
+            var measurement = new FieldMeasurement(1, 50, 25, 40, DateTime.UtcNow); // 40mm < 60mm threshold
+            var measurementEvent = new MeasurementCreatedEvent(measurement);
+
+            // Act
+            await _handler.HandleAsync(measurementEvent);
+
+            // Assert
+            _publisherMock.Verify(
+                x => x.PublishMessageAsync(It.IsAny<string>(), It.IsAny<object>(), null),
+                Times.Never);
+        }
+
+        [Theory]
+        [InlineData(60.1)] // Just above threshold
+        [InlineData(100)]  // High rainfall
+        [InlineData(200)]  // Extreme rainfall
+        public async Task HandleAsync_WhenPrecipitationAboveThreshold_ShouldPublishAlert(decimal precipitation)
+        {
+            // Arrange
+            var measurement = new FieldMeasurement(1, 50, 25, precipitation, DateTime.UtcNow);
+            var measurementEvent = new MeasurementCreatedEvent(measurement);
+
+            // Act
+            await _handler.HandleAsync(measurementEvent);
+
+            // Assert
+            _publisherMock.Verify(
+                x => x.PublishMessageAsync("alert-required-queue", It.IsAny<object>(), null),
+                Times.Once);
+        }
+    }
+}

@@ -1,32 +1,31 @@
 using Domain.Common;
-using Domain.Events;
 using Domain.Exceptions;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 
 namespace Domain.Entities
 {
     // #SOLID - Single Responsibility Principle (SRP)
-    // A entidade FieldMeasurement é responsável por:
+    // A entidade FieldMeasurement é responsável APENAS por:
     // 1. Manter o estado das medições de campo
-    // 2. Encapsular regras de negócio (validações de umidade, temperatura)
-    // 3. Gerenciar eventos de domínio
-    // Ela NÃO é responsável por persistência, logging ou comunicação externa.
-    
-    [DebuggerDisplay("Id: {Id}, FieldId: {FieldId}, SoilMoisture: {SoilMoisture}%, AirTemperature: {AirTemperature}°C, UserId: {UserId}")]
+    // 2. Validar consistência dos dados
+    // Ela NÃO é responsável por detecção de alertas, persistência ou comunicação externa.
+
+    [DebuggerDisplay("Id: {Id}, FieldId: {FieldId}, SoilMoisture: {SoilMoisture}%, AirTemperature: {AirTemperature}°C")]
     public class FieldMeasurement : BaseEntity
     {
-        public Guid Id { get; private set; }
-        public int FieldId { get; private set; }
-        public decimal SoilMoisture { get; private set; }
-        public decimal AirTemperature { get; private set; }
-        public decimal Precipitation { get; private set; }
-        public DateTime CollectedAt { get; private set; }
-        public DateTime ReceivedAt { get; private set; }
-        public string? UserId { get; private set; }
+        [JsonPropertyName("id")]
+        public Guid Id { get; init; }
 
-        // EF Core constructor
-        private FieldMeasurement() { }
+        public int FieldId { get; init; }
+        public decimal SoilMoisture { get; init; }
+        public decimal AirTemperature { get; init; }
+        public decimal Precipitation { get; init; }
+        public DateTime CollectedAt { get; init; }
+        public DateTime ReceivedAt { get; init; }
+        public string? UserId { get; init; }
 
+        // Construtor público para criação via Application Layer
         public FieldMeasurement(
             int fieldId,
             decimal soilMoisture,
@@ -44,6 +43,7 @@ namespace Domain.Entities
             ReceivedAt = DateTime.UtcNow;
             UserId = userId;
 
+            // Validar dados
             Validate();
         }
 

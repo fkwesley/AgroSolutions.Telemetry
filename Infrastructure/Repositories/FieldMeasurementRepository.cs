@@ -1,8 +1,11 @@
 using Domain.Entities;
 using Domain.Repositories;
+using Infrastructure.Configurations;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Infrastructure.Repositories
 {
@@ -13,14 +16,15 @@ namespace Infrastructure.Repositories
     // Implementa a interface IFieldMeasurementRepository definida no domínio.
     
     /// <summary>
-    /// Repositório para persistência de FieldMeasurement no Azure CosmosDB.
-    /// Utiliza o SDK do CosmosDB para operações CRUD.
+    /// Repository for persisting FieldMeasurement to Azure CosmosDB.
+    /// Uses CosmosDB SDK for CRUD operations.
     /// 
-    /// BOAS PRÁTICAS COSMOSDB:
-    /// - Partition Key: FieldId (distribui dados por campo)
+    /// COSMOSDB BEST PRACTICES:
+    /// - Account Type: Serverless (pay-per-request)
+    /// - Partition Key: /fieldId (distributes data by field)
     /// - Container: field-measurements
-    /// - Queries otimizadas com partition key
-    /// - Lazy initialization do client CosmosDB
+    /// - Queries optimized with partition key
+    /// - Lazy initialization of CosmosDB client
     /// </summary>
     public class FieldMeasurementRepository : IFieldMeasurementRepository
     {
@@ -44,10 +48,11 @@ namespace Infrastructure.Repositories
             {
                 _cosmosClient = new CosmosClient(cosmosConnectionString, new CosmosClientOptions
                 {
-                    SerializerOptions = new CosmosSerializationOptions
+                    Serializer = new CosmosSystemTextJsonSerializer(new JsonSerializerOptions
                     {
-                        PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-                    },
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                    }),
                     MaxRetryAttemptsOnRateLimitedRequests = 9,
                     MaxRetryWaitTimeOnRateLimitedRequests = TimeSpan.FromSeconds(30)
                 });
@@ -76,12 +81,12 @@ namespace Infrastructure.Repositories
                     throw new InvalidOperationException("CosmosDB not properly configured.");
 
                 var database = await _cosmosClient.CreateDatabaseIfNotExistsAsync(_databaseId);
-                
-                // Cria container com partition key = /fieldId
+
+                // Create container with partition key = /fieldId
+                // Note: Throughput cannot be specified for Serverless accounts
                 var containerResponse = await database.Database.CreateContainerIfNotExistsAsync(
                     _containerId,
-                    partitionKeyPath: "/fieldId",
-                    throughput: 400); // RU/s (pode ser ajustado conforme necessidade)
+                    partitionKeyPath: "/fieldId");
 
                 _container = containerResponse.Container;
 
@@ -102,7 +107,7 @@ namespace Infrastructure.Repositories
                 // IMPORTANTE: partition key = FieldId
                 var response = await _container!.CreateItemAsync(
                     measurement,
-                    new PartitionKey(measurement.FieldId.ToString()));
+                    new PartitionKey(measurement.FieldId));
 
                 _logger.LogInformation(
                     "Measurement {MeasurementId} saved to CosmosDB. RU consumed: {RU}",
@@ -159,7 +164,7 @@ namespace Infrastructure.Repositories
                     query,
                     requestOptions: new QueryRequestOptions
                     {
-                        PartitionKey = new PartitionKey(fieldId.ToString())
+                        PartitionKey = new PartitionKey(fieldId)
                     });
 
                 var results = new List<FieldMeasurement>();
@@ -201,7 +206,7 @@ namespace Infrastructure.Repositories
                     query,
                     requestOptions: new QueryRequestOptions
                     {
-                        PartitionKey = new PartitionKey(fieldId.ToString())
+                        PartitionKey = new PartitionKey(fieldId)
                     });
 
                 var results = new List<FieldMeasurement>();

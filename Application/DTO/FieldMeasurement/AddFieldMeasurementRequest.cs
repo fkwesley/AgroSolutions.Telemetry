@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace Application.DTO.FieldMeasurement
 {
@@ -24,6 +25,8 @@ namespace Application.DTO.FieldMeasurement
 
         [Required(ErrorMessage = "Collection date is required.")]
         public DateTime CollectedAt { get; set; }
+
+        [JsonIgnore]
         public string? UserId { get; set; }
     }
 }

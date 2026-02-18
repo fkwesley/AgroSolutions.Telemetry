@@ -2,7 +2,6 @@ using Application.DTO.Common;
 using Application.DTO.FieldMeasurement;
 using Application.Interfaces;
 using Application.Mappings;
-using Domain.Entities;
 using Domain.Events;
 using Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -10,9 +9,9 @@ using Microsoft.Extensions.Logging;
 namespace Application.Services
 {
     // #SOLID - Single Responsibility Principle (SRP)
-    // Esta classe tem uma única responsabilidade: gerenciar a lógica de negócio de medições de campo.
-    // Ela não se preocupa com detalhes de infraestrutura (DB, mensageria, logs), delegando para outras abstrações.
-    
+    // Esta classe tem uma única responsabilidade: ORQUESTRAR casos de uso de medições de campo.
+    // As análises são executadas por Event Handlers (cada análise escuta MeasurementCreatedEvent).
+
     // #SOLID - Dependency Inversion Principle (DIP)
     // FieldMeasurementService depende de ABSTRAÇÕES (interfaces) e não de implementações concretas.
     public class FieldMeasurementService : IFieldMeasurementService
@@ -44,17 +43,21 @@ namespace Application.Services
                 savedMeasurement.FieldId, 
                 savedMeasurement.SoilMoisture);
 
-            // 2. Collect domain events
-            var events = new List<IDomainEvent>
-            {
-                new MeasurementCreatedEvent(savedMeasurement) // Elasticsearch sync
-            };
+            // 2. Add creation event after successful persistence
+            savedMeasurement.AddDomainEvent(new MeasurementCreatedEvent(savedMeasurement));
 
-            // 3. Check drought conditions and collect events
-            await CollectDroughtEventsAsync(savedMeasurement, events);
+            // 3. Dispatch all events
+            // MeasurementCreatedEvent will trigger:
+            //   - ElasticMeasurementEventHandler (Elasticsearch sync)
+            //   - DroughtAnalysisEventHandler (Historical drought analysis)
+            //   - IrrigationAnalysisEventHandler (Irrigation recommendation)
+            //   - HeatStressAnalysisEventHandler (Heat stress detection)
+            //   - PestRiskAnalysisEventHandler (Pest risk assessment)
+            // Each handler runs independently and generates its own alerts
+            await _eventDispatcher.ProcessAsync(savedMeasurement.DomainEvents);
 
-            // 4. Dispatch all events asynchronously
-            await _eventDispatcher.ProcessAsync(events);
+            // 4. Clear domain events after dispatching
+            savedMeasurement.ClearDomainEvents();
 
             return savedMeasurement.ToResponse();
         }
@@ -75,8 +78,7 @@ namespace Application.Services
             return measurements.Select(m => m.ToResponse()).ToList();
         }
 
-        public async Task<PagedResponse<FieldMeasurementResponse>> GetMeasurementsPaginatedAsync(
-            PaginationParameters paginationParams)
+        public async Task<PagedResponse<FieldMeasurementResponse>> GetMeasurementsPaginatedAsync(PaginationParameters paginationParams)
         {
             var measurements = await _repository.GetPaginatedAsync(
                 paginationParams.Skip,
@@ -100,62 +102,6 @@ namespace Application.Services
                 totalCount);
 
             return pagedResponse;
-        }
-
-        /// <summary>
-        /// Checks for drought conditions and adds events to the collection if detected.
-        /// </summary>
-        private async Task CollectDroughtEventsAsync(FieldMeasurement currentMeasurement, List<IDomainEvent> events)
-        {
-            const decimal droughtThreshold = 30m;
-            const int droughtHours = 24;
-
-            // Se umidade atual está OK, não precisa verificar
-            if (currentMeasurement.SoilMoisture >= droughtThreshold)
-                return;
-
-            // Buscar medições das últimas 24h
-            var endDate = currentMeasurement.CollectedAt;
-            var startDate = endDate.AddHours(-droughtHours);
-
-            var recentMeasurements = await _repository.GetByFieldIdAndDateRangeAsync(
-                currentMeasurement.FieldId,
-                startDate,
-                endDate);
-
-            var orderedMeasurements = recentMeasurements
-                .OrderBy(m => m.CollectedAt)
-                .ToList();
-
-            // Se não há medições suficientes, não dispara alerta
-            if (!orderedMeasurements.Any())
-                return;
-
-            // Verificar se TODAS as medições nas últimas 24h estão abaixo do threshold
-            var allBelowThreshold = orderedMeasurements.All(m => m.SoilMoisture < droughtThreshold);
-
-            if (allBelowThreshold)
-            {
-                var firstLowMoisture = orderedMeasurements.First().CollectedAt;
-                var duration = endDate - firstLowMoisture;
-
-                // Só dispara se passou 24h ou mais
-                if (duration.TotalHours >= droughtHours)
-                {
-                    _logger.LogWarning(
-                        "Drought condition detected for field {FieldId}. Moisture below {Threshold}% for {Hours} hours.",
-                        currentMeasurement.FieldId,
-                        droughtThreshold,
-                        duration.TotalHours);
-
-                    var droughtEvent = new DroughtAlertRequiredEvent(
-                        currentMeasurement.FieldId,
-                        currentMeasurement.SoilMoisture,
-                        firstLowMoisture);
-
-                    events.Add(droughtEvent);
-                }
-            }
         }
     }
 }
