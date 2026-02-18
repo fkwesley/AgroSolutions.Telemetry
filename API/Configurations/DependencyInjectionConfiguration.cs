@@ -8,6 +8,7 @@ using Elastic.Apm.NetCoreAll;
 using Infrastructure.Factories;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
+using Infrastructure.Services.Elastic;
 using Infrastructure.Services.HealthCheck;
 using Infrastructure.Services.Logging;
 
@@ -33,6 +34,9 @@ public static class DependencyInjectionConfiguration
         builder.Services.Configure<NewRelicLoggerSettings>(builder.Configuration.GetSection("NewRelic"));
         builder.Services.Configure<ElasticLoggerSettings>(builder.Configuration.GetSection("ElasticLogs"));
 
+        // Elastic Services (Generic)
+        builder.Services.AddSingleton<IElasticService, ElasticService>();
+
         // Domain Services
         builder.Services.AddScoped<IFieldMeasurementService, FieldMeasurementService>();
         
@@ -50,6 +54,7 @@ public static class DependencyInjectionConfiguration
 
         // Domain Event Dispatcher & Handlers
         builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ElasticMeasurementEventHandler>();
         builder.Services.AddScoped<IDomainEventHandler<DroughtAlertRequiredEvent>, DroughtAlertRequiredEventHandler>();
 
         // Logger Services

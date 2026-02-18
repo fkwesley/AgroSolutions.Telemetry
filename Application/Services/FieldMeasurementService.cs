@@ -34,17 +34,27 @@ namespace Application.Services
         public async Task<FieldMeasurementResponse> AddMeasurementAsync(AddFieldMeasurementRequest request)
         {
             var measurement = request.ToEntity();
-            
-            // Salvar medição
+
+            // 1. Save to CosmosDB (primary persistence)
             var savedMeasurement = await _repository.AddAsync(measurement);
+
             _logger.LogInformation(
-                "Measurement {MeasurementId} saved for field {FieldId}. SoilMoisture: {SoilMoisture}%", 
+                "Measurement {MeasurementId} saved to CosmosDB for field {FieldId}. SoilMoisture: {SoilMoisture}%", 
                 savedMeasurement.Id, 
                 savedMeasurement.FieldId, 
                 savedMeasurement.SoilMoisture);
 
-            // Verificar condições de alerta de seca
-            await CheckDroughtConditionsAsync(savedMeasurement);
+            // 2. Collect domain events
+            var events = new List<IDomainEvent>
+            {
+                new MeasurementCreatedEvent(savedMeasurement) // Elasticsearch sync
+            };
+
+            // 3. Check drought conditions and collect events
+            await CollectDroughtEventsAsync(savedMeasurement, events);
+
+            // 4. Dispatch all events asynchronously
+            await _eventDispatcher.ProcessAsync(events);
 
             return savedMeasurement.ToResponse();
         }
@@ -93,10 +103,9 @@ namespace Application.Services
         }
 
         /// <summary>
-        /// Verifica se há condições de seca prolongada (umidade < 30% por mais de 24h).
-        /// Se detectado, dispara evento de alerta.
+        /// Checks for drought conditions and adds events to the collection if detected.
         /// </summary>
-        private async Task CheckDroughtConditionsAsync(FieldMeasurement currentMeasurement)
+        private async Task CollectDroughtEventsAsync(FieldMeasurement currentMeasurement, List<IDomainEvent> events)
         {
             const decimal droughtThreshold = 30m;
             const int droughtHours = 24;
@@ -144,7 +153,7 @@ namespace Application.Services
                         currentMeasurement.SoilMoisture,
                         firstLowMoisture);
 
-                    await _eventDispatcher.ProcessAsync(new[] { droughtEvent });
+                    events.Add(droughtEvent);
                 }
             }
         }
