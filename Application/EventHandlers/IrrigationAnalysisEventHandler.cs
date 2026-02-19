@@ -1,5 +1,7 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
@@ -46,7 +48,7 @@ namespace Application.EventHandlers
             var history = await _repository.GetByFieldIdAndDateRangeAsync(
                 measurement.FieldId,
                 measurement.CollectedAt.AddDays(-_settings.HistoryDays),
-                measurement.CollectedAt);
+                DateTime.UtcNow);
 
             // Executar análise
             var recommendation = _irrigationService.Analyze(
@@ -62,21 +64,34 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var severityLevel = recommendation.Urgency == Domain.ValueObjects.IrrigationUrgency.Critical ? "High" : "Medium";
+                    var NotificationRequest = new NotificationRequest
                     {
-                        AlertType = "IrrigationRecommendation",
-                        FieldId = measurement.FieldId,
-                        CurrentMoisture = measurement.SoilMoisture,
-                        TargetMoisture = _settings.OptimalMoisture,
-                        Urgency = recommendation.Urgency.ToString(),
-                        WaterAmountMM = recommendation.WaterAmountMM,
-                        EstimatedDurationMinutes = (int)recommendation.EstimatedDuration.TotalMinutes,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = recommendation.Urgency == Domain.ValueObjects.IrrigationUrgency.Critical ? "High" : "Medium",
-                        Message = $"Recomendação de Irrigação: Campo {measurement.FieldId} - Urgência: {recommendation.Urgency}, Água necessária: {recommendation.WaterAmountMM:F1}mm (~{recommendation.EstimatedDuration.TotalMinutes:F0} minutos)"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.Irrigation.SubjectTemplate, measurement.FieldId, recommendation.Urgency),
+                        Body = AlertMessagesConstant.Irrigation.GetBody(
+                            measurement.FieldId,
+                            measurement.SoilMoisture,
+                            _settings.OptimalMoisture,
+                            recommendation.Urgency.ToString(),
+                            recommendation.WaterAmountMM,
+                            recommendation.EstimatedDuration.TotalMinutes,
+                            _settings.HistoryDays,
+                            _settings.CriticalMoisture,
+                            _settings.SoilWaterCapacity,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "IrrigationRecommendation",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = severityLevel
+                        }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
 
                     _logger.LogWarning(
                         "Irrigation recommendation sent to Service Bus | Field: {FieldId}, Urgency: {Urgency}, Water: {Water}mm",

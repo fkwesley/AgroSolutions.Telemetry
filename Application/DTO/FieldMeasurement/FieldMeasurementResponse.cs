@@ -15,6 +15,7 @@ namespace Application.DTO.FieldMeasurement
         public DateTime CollectedAt { get; set; }
         public DateTime ReceivedAt { get; set; }
         public string? UserId { get; set; }
+        public string AlertEmailTo { get; set; } = string.Empty;
         public List<Link> Links { get; set; } = new();
     }
 }

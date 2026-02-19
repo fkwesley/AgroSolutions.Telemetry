@@ -1,4 +1,4 @@
-namespace Application.Configuration
+namespace Application.Settings
 {
     /// <summary>
     /// Configurações gerais para análise de condições do campo.
@@ -46,6 +46,30 @@ namespace Application.Configuration
         /// Default: 0°C
         /// </summary>
         public decimal Threshold { get; set; } = 0m;
+    }
+
+    /// <summary>
+    /// Configurações para detecção de seca.
+    /// </summary>
+    public class DroughtAlertSettings
+    {
+        /// <summary>
+        /// Limite mínimo de umidade do solo (%) abaixo do qual uma condição de seca é considerada.
+        /// Default: 30%
+        /// </summary>
+        public decimal Threshold { get; set; } = 30m;
+
+        /// <summary>
+        /// Duração mínima (em horas) que a umidade deve permanecer abaixo do limite para acionar um alerta.
+        /// Default: 24 horas
+        /// </summary>
+        public int MinimumDurationHours { get; set; } = 24;
+
+        /// <summary>
+        /// Dias de histórico necessários para análise de tendência de seca.
+        /// Default: 7 dias
+        /// </summary>
+        public int HistoryDays { get; set; } = 7;
     }
 
     /// <summary>

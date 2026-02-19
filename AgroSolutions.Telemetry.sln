@@ -14,16 +14,22 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{9CF47860-2CEA-F379-09D8-9AEF27965D12}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{4BEAFE8D-8BC1-42B3-A91F-B1675E44C2B0}"
+	ProjectSection(SolutionItems) = preProject
+		docs\Architecture.drawio = docs\Architecture.drawio
+		docs\README.md = docs\README.md
+		docs\ServiceBusMessageStandardization.md = docs\ServiceBusMessageStandardization.md
+		docs\SOLID_Summary.md = docs\SOLID_Summary.md
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "kubernetes", "kubernetes", "{EB01764D-1888-4FF4-927E-FBDBA60FB3F9}"
 	ProjectSection(SolutionItems) = preProject
 		kubernetes\AzureAKS_script.txt = kubernetes\AzureAKS_script.txt
-		..\AgroSolutions.Users\Kubernetes\configmap.yaml = ..\AgroSolutions.Users\Kubernetes\configmap.yaml
-		..\AgroSolutions.Users\Kubernetes\deployment.yaml = ..\AgroSolutions.Users\Kubernetes\deployment.yaml
-		..\AgroSolutions.Users\Kubernetes\hpa.yaml = ..\AgroSolutions.Users\Kubernetes\hpa.yaml
-		..\AgroSolutions.Users\Kubernetes\namespace.yaml = ..\AgroSolutions.Users\Kubernetes\namespace.yaml
-		..\AgroSolutions.Users\Kubernetes\secret.yaml = ..\AgroSolutions.Users\Kubernetes\secret.yaml
-		..\AgroSolutions.Users\Kubernetes\service.yaml = ..\AgroSolutions.Users\Kubernetes\service.yaml
+		Kubernetes\configmap.yaml = Kubernetes\configmap.yaml
+		Kubernetes\deployment.yaml = Kubernetes\deployment.yaml
+		Kubernetes\hpa.yaml = Kubernetes\hpa.yaml
+		Kubernetes\namespace.yaml = Kubernetes\namespace.yaml
+		Kubernetes\secret.yaml = Kubernetes\secret.yaml
+		Kubernetes\service.yaml = Kubernetes\service.yaml
 	EndProjectSection
 EndProject
 Global

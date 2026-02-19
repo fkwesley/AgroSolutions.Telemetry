@@ -1,5 +1,7 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
@@ -46,7 +48,7 @@ namespace Application.EventHandlers
             var history = await _repository.GetByFieldIdAndDateRangeAsync(
                 measurement.FieldId,
                 measurement.CollectedAt.AddHours(-_settings.HistoryHours),
-                measurement.CollectedAt);
+                DateTime.UtcNow);
 
             // Executar análise
             var heatStress = _heatStressService.Analyze(
@@ -61,20 +63,33 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var severityLevel = heatStress.Level == Domain.ValueObjects.HeatStressLevel.Severe ? "High" : "Medium";
+                    var NotificationRequest = new NotificationRequest
                     {
-                        AlertType = "HeatStress",
-                        FieldId = measurement.FieldId,
-                        StressLevel = heatStress.Level.ToString(),
-                        DurationInHours = heatStress.DurationInHours,
-                        AverageTemperature = heatStress.AverageTemperature,
-                        PeakTemperature = heatStress.PeakTemperature,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = heatStress.Level == Domain.ValueObjects.HeatStressLevel.Severe ? "High" : "Medium",
-                        Message = $"Estresse Térmico: Campo {measurement.FieldId} - Nível: {heatStress.Level}, Duração: {heatStress.DurationInHours:F1}h, Pico: {heatStress.PeakTemperature:F1}°C"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.HeatStress.SubjectTemplate, measurement.FieldId, heatStress.Level),
+                        Body = AlertMessagesConstant.HeatStress.GetBody(
+                            measurement.FieldId,
+                            heatStress.Level.ToString(),
+                            (decimal)heatStress.DurationInHours,
+                            heatStress.AverageTemperature,
+                            heatStress.PeakTemperature,
+                            _settings.HistoryHours,
+                            _settings.CriticalTemperature,
+                            _settings.MinimumDurationHours,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "HeatStress",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = severityLevel
+                        }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
 
                     _logger.LogWarning(
                         "Heat stress alert sent to Service Bus | Field: {FieldId}, Level: {Level}, Duration: {Hours:F1}h, Peak: {Peak}°C",

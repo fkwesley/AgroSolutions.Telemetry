@@ -13,7 +13,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         private readonly Mock<IMessagePublisherFactory> _publisherFactoryMock;
         private readonly Mock<IMessagePublisher> _publisherMock;
         private readonly Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>> _loggerMock;
-        private readonly global::Application.Configuration.ExcessiveRainfallSettings _settings;
+        private readonly global::Application.Settings.ExcessiveRainfallSettings _settings;
         private readonly ExcessiveRainfallAnalysisEventHandler _handler;
 
         public ExcessiveRainfallAnalysisEventHandlerTests()
@@ -21,7 +21,7 @@ namespace Tests.UnitTests.Application.EventHandlers
             _publisherFactoryMock = new Mock<IMessagePublisherFactory>();
             _publisherMock = new Mock<IMessagePublisher>();
             _loggerMock = new Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>>();
-            _settings = new global::Application.Configuration.ExcessiveRainfallSettings { Threshold = 60 };
+            _settings = new global::Application.Settings.ExcessiveRainfallSettings { Threshold = 60 };
 
             _publisherFactoryMock
                 .Setup(x => x.GetPublisher("ServiceBus"))
@@ -37,7 +37,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenPrecipitationExceedsThreshold_ShouldPublishAlert()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 50, 25, 75, DateTime.UtcNow); // 75mm > 60mm threshold
+            var measurement = new FieldMeasurement(1, 50, 25, 75, DateTime.UtcNow, "alerts@farm.com"); // 75mm > 60mm threshold
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             // Act
@@ -53,7 +53,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenPrecipitationBelowThreshold_ShouldNotPublishAlert()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 50, 25, 40, DateTime.UtcNow); // 40mm < 60mm threshold
+            var measurement = new FieldMeasurement(1, 50, 25, 40, DateTime.UtcNow, "alerts@farm.com"); // 40mm < 60mm threshold
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             // Act
@@ -72,7 +72,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenPrecipitationAboveThreshold_ShouldPublishAlert(decimal precipitation)
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 50, 25, precipitation, DateTime.UtcNow);
+            var measurement = new FieldMeasurement(1, 50, 25, precipitation, DateTime.UtcNow, "alerts@farm.com");
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             // Act

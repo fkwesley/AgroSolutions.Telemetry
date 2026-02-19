@@ -10,7 +10,7 @@ namespace Tests.UnitTests.Domain.Events
         public void Constructor_WithValidMeasurement_ShouldCreateEvent()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 50, 25, 10, DateTime.UtcNow);
+            var measurement = new FieldMeasurement(1, 50, 25, 10, DateTime.UtcNow, "alerts@farm.com");
 
             // Act
             var domainEvent = new MeasurementCreatedEvent(measurement);
@@ -41,7 +41,7 @@ namespace Tests.UnitTests.Domain.Events
             var userId = "user-456";
 
             var measurement = new FieldMeasurement(
-                fieldId, soilMoisture, airTemperature, precipitation, collectedAt, userId);
+                fieldId, soilMoisture, airTemperature, precipitation, collectedAt, "alerts@farm.com", userId);
 
             // Act
             var domainEvent = new MeasurementCreatedEvent(measurement);

@@ -24,6 +24,7 @@ namespace Domain.Entities
         public DateTime CollectedAt { get; init; }
         public DateTime ReceivedAt { get; init; }
         public string? UserId { get; init; }
+        public string AlertEmailTo { get; init; }
 
         // Construtor público para criação via Application Layer
         public FieldMeasurement(
@@ -32,6 +33,7 @@ namespace Domain.Entities
             decimal airTemperature,
             decimal precipitation,
             DateTime collectedAt,
+            string alertEmailTo,
             string? userId = null)
         {
             Id = Guid.NewGuid();
@@ -42,6 +44,7 @@ namespace Domain.Entities
             CollectedAt = collectedAt;
             ReceivedAt = DateTime.UtcNow;
             UserId = userId;
+            AlertEmailTo = alertEmailTo ?? throw new ArgumentNullException(nameof(alertEmailTo));
 
             // Validar dados
             Validate();

@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using FieldMeasurement = global::Domain.Entities.FieldMeasurement;
-using DroughtCriteria = global::Domain.ValueObjects.DroughtCriteria;
 using DroughtCondition = global::Domain.ValueObjects.DroughtCondition;
 using MeasurementCreatedEvent = global::Domain.Events.MeasurementCreatedEvent;
 
@@ -17,7 +16,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         private readonly Mock<IMessagePublisherFactory> _publisherFactoryMock;
         private readonly Mock<IMessagePublisher> _publisherMock;
         private readonly Mock<ILogger<DroughtAnalysisEventHandler>> _loggerMock;
-        private readonly global::Application.Configuration.DroughtAlertSettings _settings;
+        private readonly global::Application.Settings.DroughtAlertSettings _settings;
         private readonly DroughtAnalysisEventHandler _handler;
 
         public DroughtAnalysisEventHandlerTests()
@@ -27,7 +26,7 @@ namespace Tests.UnitTests.Application.EventHandlers
             _publisherFactoryMock = new Mock<IMessagePublisherFactory>();
             _publisherMock = new Mock<IMessagePublisher>();
             _loggerMock = new Mock<ILogger<DroughtAnalysisEventHandler>>();
-            _settings = new global::Application.Configuration.DroughtAlertSettings();
+            _settings = new global::Application.Settings.DroughtAlertSettings();
 
             _publisherFactoryMock
                 .Setup(x => x.GetPublisher("ServiceBus"))
@@ -45,13 +44,13 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenDroughtDetected_ShouldPublishAlert()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 25, 30, 5, DateTime.UtcNow);
+            var measurement = new FieldMeasurement(1, 25, 30, 5, DateTime.UtcNow, "alerts@farm.com");
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             var history = new List<FieldMeasurement>
             {
-                new(1, 28, 30, 5, DateTime.UtcNow.AddDays(-1)),
-                new(1, 25, 30, 5, DateTime.UtcNow.AddDays(-2))
+                new(1, 28, 30, 5, DateTime.UtcNow.AddDays(-1), "alerts@farm.com"),
+                new(1, 25, 30, 5, DateTime.UtcNow.AddDays(-2), "alerts@farm.com")
             };
 
             _repositoryMock
@@ -62,7 +61,7 @@ namespace Tests.UnitTests.Application.EventHandlers
                 .ReturnsAsync(history);
 
             _droughtDetectionMock
-                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<DroughtCriteria>()))
+                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<decimal>(), It.IsAny<int>()))
                 .Returns(new DroughtCondition(DateTime.UtcNow.AddDays(-2), TimeSpan.FromHours(48)));
 
             // Act
@@ -78,7 +77,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenNoDroughtDetected_ShouldNotPublishAlert()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 55, 25, 10, DateTime.UtcNow);
+            var measurement = new FieldMeasurement(1, 55, 25, 10, DateTime.UtcNow, "alerts@farm.com");
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             _repositoryMock
@@ -89,7 +88,7 @@ namespace Tests.UnitTests.Application.EventHandlers
                 .ReturnsAsync(new List<FieldMeasurement>());
 
             _droughtDetectionMock
-                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<DroughtCriteria>()))
+                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<decimal>(), It.IsAny<int>()))
                 .Returns((DroughtCondition?)null);
 
             // Act
@@ -105,7 +104,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         public async Task HandleAsync_WhenPublishFails_ShouldThrowException()
         {
             // Arrange
-            var measurement = new FieldMeasurement(1, 25, 30, 5, DateTime.UtcNow);
+            var measurement = new FieldMeasurement(1, 25, 30, 5, DateTime.UtcNow, "alerts@farm.com");
             var measurementEvent = new MeasurementCreatedEvent(measurement);
 
             _repositoryMock
@@ -116,7 +115,7 @@ namespace Tests.UnitTests.Application.EventHandlers
                 .ReturnsAsync(new List<FieldMeasurement>());
 
             _droughtDetectionMock
-                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<DroughtCriteria>()))
+                .Setup(x => x.Detect(It.IsAny<IEnumerable<FieldMeasurement>>(), It.IsAny<decimal>(), It.IsAny<int>()))
                 .Returns(new DroughtCondition(DateTime.UtcNow.AddDays(-2), TimeSpan.FromHours(48)));
 
             _publisherMock

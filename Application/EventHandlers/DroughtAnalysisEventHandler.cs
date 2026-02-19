@@ -1,9 +1,10 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
-using Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
 namespace Application.EventHandlers
@@ -47,11 +48,13 @@ namespace Application.EventHandlers
             var history = await _repository.GetByFieldIdAndDateRangeAsync(
                 measurement.FieldId,
                 measurement.CollectedAt.AddDays(-_settings.HistoryDays),
-                measurement.CollectedAt);
+                DateTime.UtcNow);
 
             // Executar análise
-            var criteria = new DroughtCriteria(_settings.Threshold, _settings.MinimumDurationHours);
-            var drought = _droughtDetection.Detect(history, criteria);
+            var drought = _droughtDetection.Detect(
+                history,
+                _settings.Threshold,
+                _settings.MinimumDurationHours);
 
             // Se detectou seca, publicar alerta DIRETO no Service Bus
             if (drought != null)
@@ -60,16 +63,28 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var alertMessage = new NotificationRequest
                     {
-                        AlertType = "DroughtCondition",
-                        FieldId = measurement.FieldId,
-                        CurrentSoilMoisture = measurement.SoilMoisture,
-                        FirstLowMoistureDetected = drought.StartTime,
-                        DurationInHours = drought.DurationInHours,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = "High",
-                        Message = $"Alerta de Seca: Campo {measurement.FieldId} com umidade abaixo de {_settings.Threshold}% por {drought.DurationInHours:F1} horas. Umidade atual: {measurement.SoilMoisture}%"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.Drought.SubjectTemplate, measurement.FieldId),
+                        Body = AlertMessagesConstant.Drought.GetBody(
+                            measurement.FieldId,
+                            measurement.SoilMoisture,
+                            _settings.Threshold,
+                            drought.StartTime,
+                            drought.DurationInHours,
+                            _settings.HistoryDays,
+                            _settings.MinimumDurationHours,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "DroughtCondition",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = "High"
+                        }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);

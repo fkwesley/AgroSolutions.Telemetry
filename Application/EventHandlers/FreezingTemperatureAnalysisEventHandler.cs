@@ -1,5 +1,7 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Microsoft.Extensions.Logging;
 
@@ -40,18 +42,27 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var NotificationRequest = new NotificationRequest
                     {
-                        AlertType = "FreezingTemperature",
-                        FieldId = measurement.FieldId,
-                        AirTemperature = measurement.AirTemperature,
-                        Threshold = _settings.Threshold,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = "High",
-                        Message = $"Risco de Geada: Campo {measurement.FieldId} com temperatura de {measurement.AirTemperature}°C (limite: {_settings.Threshold}°C)"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.FreezingTemperature.SubjectTemplate, measurement.FieldId),
+                        Body = AlertMessagesConstant.FreezingTemperature.GetBody(
+                            measurement.FieldId,
+                            measurement.AirTemperature,
+                            _settings.Threshold,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "FreezingTemperature",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = "High"
+                        }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
 
                     _logger.LogWarning(
                         "Freezing temperature alert sent to Service Bus | Field: {FieldId}, Temperature: {Temperature}°C, Threshold: {Threshold}°C",

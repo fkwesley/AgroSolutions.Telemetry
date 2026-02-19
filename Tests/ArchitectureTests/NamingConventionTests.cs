@@ -78,7 +78,9 @@ namespace Tests.ArchitectureTests
                                    typeName == "Link" ||
                                    typeName == "PagedResponse" ||
                                    typeName == "ComponentHealth" ||
-                                   typeName == "HealthResponse";
+                                   typeName == "HealthResponse" ||
+                                   typeName == "NotificationRequest" ||
+                                   typeName == "AlertMetadata";
 
                 Assert.True(hasValidSuffix, 
                     $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");
@@ -107,7 +109,9 @@ namespace Tests.ArchitectureTests
                                    typeName == "Link" ||
                                    typeName == "PagedResponse" ||
                                    typeName == "ComponentHealth" ||
-                                   typeName == "HealthResponse";
+                                   typeName == "HealthResponse" ||
+                                   typeName == "NotificationRequest" ||
+                                   typeName == "AlertMetadata";
 
                 Assert.True(hasValidSuffix,
                     $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");

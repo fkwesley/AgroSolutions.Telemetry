@@ -22,10 +22,15 @@ namespace Domain.Services
     {
         public DroughtCondition? Detect(
             IEnumerable<FieldMeasurement> measurements,
-            DroughtCriteria criteria)
+            decimal moistureThreshold,
+            int minimumDurationHours)
         {
-            // Validar critérios
-            criteria.Validate();
+            // Validar parâmetros
+            if (moistureThreshold < 0 || moistureThreshold > 100)
+                throw new ArgumentException("Threshold deve estar entre 0 e 100%.", nameof(moistureThreshold));
+
+            if (minimumDurationHours <= 0)
+                throw new ArgumentException("MinimumDurationHours deve ser maior que 0.", nameof(minimumDurationHours));
 
             var orderedMeasurements = measurements
                 .OrderBy(m => m.CollectedAt)
@@ -39,7 +44,7 @@ namespace Domain.Services
             var current = orderedMeasurements.Last();
 
             // Early return: umidade atual está OK
-            if (current.SoilMoisture >= criteria.Threshold)
+            if (current.SoilMoisture >= moistureThreshold)
                 return null;
 
             // Encontrar o início da sequência CONTÍNUA de baixa umidade
@@ -47,7 +52,7 @@ namespace Domain.Services
 
             foreach (var measurement in orderedMeasurements)
             {
-                if (measurement.SoilMoisture < criteria.Threshold)
+                if (measurement.SoilMoisture < moistureThreshold)
                 {
                     // Primeira medição abaixo do threshold
                     droughtStartTime ??= measurement.CollectedAt;
@@ -64,7 +69,7 @@ namespace Domain.Services
             {
                 var duration = current.CollectedAt - droughtStartTime.Value;
 
-                if (duration.TotalHours >= criteria.MinimumDurationHours)
+                if (duration.TotalHours >= minimumDurationHours)
                 {
                     return new DroughtCondition(droughtStartTime.Value, duration);
                 }

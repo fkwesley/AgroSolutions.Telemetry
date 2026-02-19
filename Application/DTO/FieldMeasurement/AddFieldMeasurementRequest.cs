@@ -26,6 +26,13 @@ namespace Application.DTO.FieldMeasurement
         [Required(ErrorMessage = "Collection date is required.")]
         public DateTime CollectedAt { get; set; }
 
+        /// <summary>
+        /// Email para receber alertas e notificações relacionadas a esta medição.
+        /// </summary>
+        [Required(ErrorMessage = "Alert email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        public string AlertEmailTo { get; set; } = string.Empty;
+
         [JsonIgnore]
         public string? UserId { get; set; }
     }

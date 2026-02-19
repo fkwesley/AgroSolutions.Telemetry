@@ -24,6 +24,7 @@ namespace Tests.UnitTests.Domain.Entities
                 airTemperature,
                 precipitation,
                 collectedAt,
+                "alerts@farm.com",
                 userId);
 
             // Assert
@@ -53,7 +54,8 @@ namespace Tests.UnitTests.Domain.Entities
                 soilMoisture,
                 airTemperature,
                 precipitation,
-                collectedAt);
+                collectedAt,
+                "alerts@farm.com");
 
             // Assert
             Assert.NotEqual(Guid.Empty, measurement.Id);
@@ -72,7 +74,7 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(fieldId, invalidMoisture, 25, 10, collectedAt));
+                new FieldMeasurement(fieldId, invalidMoisture, 25, 10, collectedAt, "alerts@farm.com"));
 
             Assert.Contains("Umidade inválida", exception.Message);
         }
@@ -88,7 +90,7 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(fieldId, 50, invalidTemp, 10, collectedAt));
+                new FieldMeasurement(fieldId, 50, invalidTemp, 10, collectedAt, "alerts@farm.com"));
 
             Assert.Contains("Temperatura inválida", exception.Message);
         }
@@ -102,7 +104,7 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(fieldId, 50, 25, -5, collectedAt));
+                new FieldMeasurement(fieldId, 50, 25, -5, collectedAt, "alerts@farm.com"));
 
             Assert.Contains("Precipitação não pode ser negativa", exception.Message);
         }
@@ -116,7 +118,7 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(fieldId, 50, 25, 10, futureDate));
+                new FieldMeasurement(fieldId, 50, 25, 10, futureDate, "alerts@farm.com"));
 
             Assert.Contains("Data de coleta não pode ser futura", exception.Message);
         }
@@ -129,7 +131,7 @@ namespace Tests.UnitTests.Domain.Entities
 
             // Act & Assert
             var exception = Assert.Throws<BusinessException>(() =>
-                new FieldMeasurement(0, 50, 25, 10, collectedAt));
+                new FieldMeasurement(0, 50, 25, 10, collectedAt, "alerts@farm.com"));
 
             Assert.Contains("FieldId não pode ser zero", exception.Message);
         }
@@ -142,8 +144,8 @@ namespace Tests.UnitTests.Domain.Entities
             var collectedAt = DateTime.UtcNow;
 
             // Act - Testing boundary values
-            var measurement1 = new FieldMeasurement(fieldId, 0, -50, 0, collectedAt);
-            var measurement2 = new FieldMeasurement(fieldId, 100, 80, 1000, collectedAt);
+            var measurement1 = new FieldMeasurement(fieldId, 0, -50, 0, collectedAt, "alerts@farm.com");
+            var measurement2 = new FieldMeasurement(fieldId, 100, 80, 1000, collectedAt, "alerts@farm.com");
 
             // Assert
             Assert.NotNull(measurement1);

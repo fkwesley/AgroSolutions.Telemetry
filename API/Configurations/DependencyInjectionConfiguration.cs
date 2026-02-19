@@ -1,4 +1,3 @@
-using Application.Configuration;
 using Application.EventHandlers;
 using Application.Interfaces;
 using Application.Services;

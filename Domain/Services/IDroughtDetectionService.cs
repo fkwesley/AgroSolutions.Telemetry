@@ -20,10 +20,12 @@ namespace Domain.Services
         /// Assume que o histórico JÁ INCLUI a medição atual (última por data).
         /// </summary>
         /// <param name="measurements">Histórico de medições incluindo a atual</param>
-        /// <param name="criteria">Critérios de detecção de seca</param>
+        /// <param name="moistureThreshold">Limite de umidade do solo (%) abaixo do qual considera-se seca</param>
+        /// <param name="minimumDurationHours">Duração mínima em horas que a umidade deve permanecer baixa</param>
         /// <returns>Condição de seca detectada ou null se não houver seca</returns>
         DroughtCondition? Detect(
             IEnumerable<FieldMeasurement> measurements,
-            DroughtCriteria criteria);
+            decimal moistureThreshold,
+            int minimumDurationHours);
     }
 }

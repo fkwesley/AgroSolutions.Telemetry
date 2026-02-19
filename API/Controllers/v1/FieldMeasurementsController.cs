@@ -118,7 +118,7 @@ namespace API.Controllers.v1
         [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> Add([FromBody] AddFieldMeasurementRequest request)
         {
-            // getting user_id and user_email from context (provided by token)
+            // getting user_id from context (provided by token)
             request.UserId = HttpContext.User?.FindFirst("user_id")?.Value ?? "anonymous"; // getting user_id from context (provided by token)
 
             var createdMeasurement = await _service.AddMeasurementAsync(request);

@@ -154,7 +154,9 @@ namespace Tests.ArchitectureTests
                                 typeName == "PagedResponse" ||
                                 typeName == "Link" ||
                                 typeName == "ComponentHealth" ||
-                                typeName == "HealthResponse";
+                                typeName == "HealthResponse" ||
+                                typeName == "NotificationRequest" ||      // Internal DTO for Service Bus
+                                typeName == "AlertMetadata";       // Alert metadata
 
                 if (!isResponse)
                 {

@@ -1,5 +1,7 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
@@ -47,7 +49,7 @@ namespace Application.EventHandlers
             var history = await _repository.GetByFieldIdAndDateRangeAsync(
                 measurement.FieldId,
                 measurement.CollectedAt.AddDays(-_settings.HistoryDays),
-                measurement.CollectedAt);
+                DateTime.UtcNow);
 
             // Executar análise
             var pestRisk = _pestRiskService.Analyze(
@@ -64,21 +66,37 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var severityLevel = pestRisk.RiskLevel == PestRiskLevel.High ? "High" : "Medium";
+                    var riskFactorsText = string.Join("\n", pestRisk.RiskFactors.Select(rf => $"- {rf}"));
+                    var NotificationRequest = new NotificationRequest
                     {
-                        AlertType = "PestRisk",
-                        FieldId = measurement.FieldId,
-                        RiskLevel = pestRisk.RiskLevel.ToString(),
-                        FavorableDaysCount = pestRisk.FavorableDaysCount,
-                        AverageTemperature = pestRisk.AverageTemperature,
-                        AverageMoisture = pestRisk.AverageMoisture,
-                        RiskFactors = pestRisk.RiskFactors,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = pestRisk.RiskLevel == PestRiskLevel.High ? "High" : "Medium",
-                        Message = $"Risco de Pragas: Campo {measurement.FieldId} - Nível: {pestRisk.RiskLevel}, {pestRisk.FavorableDaysCount} dias consecutivos com condições favoráveis"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.PestRisk.SubjectTemplate, measurement.FieldId, pestRisk.RiskLevel),
+                        Body = AlertMessagesConstant.PestRisk.GetBody(
+                            measurement.FieldId,
+                            pestRisk.RiskLevel.ToString(),
+                            pestRisk.FavorableDaysCount,
+                            pestRisk.AverageTemperature,
+                            pestRisk.AverageMoisture,
+                            riskFactorsText,
+                            _settings.HistoryDays,
+                            _settings.MinTemperature,
+                            _settings.MaxTemperature,
+                            _settings.MinMoisture,
+                            _settings.MinimumFavorableDays,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "PestRisk",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = severityLevel
+                        }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
 
                     _logger.LogWarning(
                         "Pest risk alert sent to Service Bus | Field: {FieldId}, Risk: {RiskLevel}, Days: {Days}",

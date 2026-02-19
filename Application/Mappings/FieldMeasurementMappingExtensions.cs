@@ -19,6 +19,7 @@ namespace Application.Mappings
                 airTemperature: request.AirTemperature,
                 precipitation: request.Precipitation,
                 collectedAt: request.CollectedAt,
+                alertEmailTo: request.AlertEmailTo,
                 userId: request.UserId
             );
         }
@@ -37,7 +38,8 @@ namespace Application.Mappings
                 Precipitation = entity.Precipitation,
                 CollectedAt = entity.CollectedAt,
                 ReceivedAt = entity.ReceivedAt,
-                UserId = entity.UserId
+                UserId = entity.UserId,
+                AlertEmailTo = entity.AlertEmailTo
             };
         }
     }

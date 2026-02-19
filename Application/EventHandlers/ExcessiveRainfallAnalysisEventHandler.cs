@@ -1,5 +1,7 @@
-using Application.Configuration;
+using Application.Constants;
+using Application.DTO.Alerts;
 using Application.Interfaces;
+using Application.Settings;
 using Domain.Events;
 using Microsoft.Extensions.Logging;
 
@@ -40,18 +42,27 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var alertMessage = new
+                    var NotificationRequest = new NotificationRequest
                     {
-                        AlertType = "ExcessiveRainfall",
-                        FieldId = measurement.FieldId,
-                        Precipitation = measurement.Precipitation,
-                        Threshold = _settings.Threshold,
-                        DetectedAt = DateTime.UtcNow,
-                        Severity = "High",
-                        Message = $"Chuva Excessiva: Campo {measurement.FieldId} com precipitação de {measurement.Precipitation}mm (limite: {_settings.Threshold}mm)"
+                        EmailTo = new List<string> { measurement.AlertEmailTo },
+                        EmailCc = new List<string>(),
+                        EmailBcc = new List<string>(),
+                        Subject = string.Format(AlertMessagesConstant.ExcessiveRainfall.SubjectTemplate, measurement.FieldId),
+                        Body = AlertMessagesConstant.ExcessiveRainfall.GetBody(
+                            measurement.FieldId,
+                            measurement.Precipitation,
+                            _settings.Threshold,
+                            DateTime.UtcNow),
+                        Metadata = new AlertMetadata
+                        {
+                            AlertType = "ExcessiveRainfall",
+                            FieldId = measurement.FieldId,
+                            DetectedAt = DateTime.UtcNow,
+                            Severity = "High"
+                        }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
 
                     _logger.LogWarning(
                         "Excessive rainfall alert sent to Service Bus | Field: {FieldId}, Precipitation: {Precipitation}mm, Threshold: {Threshold}mm",
