@@ -69,7 +69,7 @@ namespace Tests.UnitTests.Application.EventHandlers
 
             // Assert
             _publisherMock.Verify(
-                x => x.PublishMessageAsync("alert-required-queue", It.IsAny<object>(), null),
+                x => x.PublishMessageAsync("notifications-queue", It.IsAny<object>(), It.IsAny<IDictionary<string, object>>()),
                 Times.Once);
         }
 
@@ -119,7 +119,7 @@ namespace Tests.UnitTests.Application.EventHandlers
                 .Returns(new DroughtCondition(DateTime.UtcNow.AddDays(-2), TimeSpan.FromHours(48)));
 
             _publisherMock
-                .Setup(x => x.PublishMessageAsync(It.IsAny<string>(), It.IsAny<object>(), null))
+                .Setup(x => x.PublishMessageAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<IDictionary<string, object>>()))
                 .ThrowsAsync(new Exception("Service Bus error"));
 
             // Act & Assert

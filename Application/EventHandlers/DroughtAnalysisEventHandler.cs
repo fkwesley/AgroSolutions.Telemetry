@@ -87,7 +87,16 @@ namespace Application.EventHandlers
                         }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+                    // Prepare custom properties for Service Bus
+                    var customProperties = new Dictionary<string, object>
+                    {
+                        { "CorrelationId", alertMessage.Metadata.CorrelationId },
+                        { "AlertType", alertMessage.Metadata.AlertType },
+                        { "FieldId", alertMessage.Metadata.FieldId },
+                        { "Severity", alertMessage.Metadata.Severity }
+                    };
+
+                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", alertMessage, customProperties);
 
                     _logger.LogWarning(
                         "Drought alert sent to Service Bus | Field: {FieldId}, Moisture: {Moisture}%, Duration: {Hours:F1}h, Threshold: {Threshold}%",

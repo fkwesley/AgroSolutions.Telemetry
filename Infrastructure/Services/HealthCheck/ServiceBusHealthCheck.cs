@@ -47,7 +47,7 @@ namespace Infrastructure.Services.HealthCheck
                 await using var client = new ServiceBusClient(connectionString);
 
                 // Tenta criar um sender para verificar conectividade
-                var queueName = _configuration["AlertSettings:DroughtAlertQueueName"] ?? "alert-required-queue";
+                var queueName = "notifications-queue";
                 await using var sender = client.CreateSender(queueName);
 
                 stopwatch.Stop();

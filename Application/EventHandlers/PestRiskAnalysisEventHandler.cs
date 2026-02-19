@@ -96,7 +96,16 @@ namespace Application.EventHandlers
                         }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
+                    // Prepare custom properties for Service Bus
+                    var customProperties = new Dictionary<string, object>
+                    {
+                        { "CorrelationId", NotificationRequest.Metadata.CorrelationId },
+                        { "AlertType", NotificationRequest.Metadata.AlertType },
+                        { "FieldId", NotificationRequest.Metadata.FieldId },
+                        { "Severity", NotificationRequest.Metadata.Severity }
+                    };
+
+                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", NotificationRequest, customProperties);
 
                     _logger.LogWarning(
                         "Pest risk alert sent to Service Bus | Field: {FieldId}, Risk: {RiskLevel}, Days: {Days}",
@@ -116,3 +125,4 @@ namespace Application.EventHandlers
         }
     }
 }
+

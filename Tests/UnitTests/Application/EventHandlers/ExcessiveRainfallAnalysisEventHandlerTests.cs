@@ -45,7 +45,7 @@ namespace Tests.UnitTests.Application.EventHandlers
 
             // Assert - Verify that message was published, without checking content
             _publisherMock.Verify(
-                x => x.PublishMessageAsync("alert-required-queue", It.IsAny<object>(), null),
+                x => x.PublishMessageAsync("notifications-queue", It.IsAny<object>(), It.IsAny<IDictionary<string, object>>()),
                 Times.Once);
         }
 
@@ -80,7 +80,7 @@ namespace Tests.UnitTests.Application.EventHandlers
 
             // Assert
             _publisherMock.Verify(
-                x => x.PublishMessageAsync("alert-required-queue", It.IsAny<object>(), null),
+                x => x.PublishMessageAsync("notifications-queue", It.IsAny<object>(), It.IsAny<IDictionary<string, object>>()),
                 Times.Once);
         }
     }

@@ -42,7 +42,7 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var NotificationRequest = new NotificationRequest
+                    var notificationRequest = new NotificationRequest
                     {
                         EmailTo = new List<string> { measurement.AlertEmailTo },
                         EmailCc = new List<string>(),
@@ -62,13 +62,23 @@ namespace Application.EventHandlers
                         }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
+                    // Prepare custom properties for Service Bus
+                    var customProperties = new Dictionary<string, object>
+                    {
+                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
+                        { "AlertType", notificationRequest.Metadata.AlertType },
+                        { "FieldId", notificationRequest.Metadata.FieldId },
+                        { "Severity", notificationRequest.Metadata.Severity }
+                    };
+
+                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);
 
                     _logger.LogWarning(
-                        "Excessive rainfall alert sent to Service Bus | Field: {FieldId}, Precipitation: {Precipitation}mm, Threshold: {Threshold}mm",
+                        "Excessive rainfall alert sent to Service Bus | Field: {FieldId}, Precipitation: {Precipitation}mm, Threshold: {Threshold}mm, CorrelationId: {CorrelationId}",
                         measurement.FieldId,
                         measurement.Precipitation,
-                        _settings.Threshold);
+                        _settings.Threshold,
+                        notificationRequest.Metadata.CorrelationId);
                 }
                 catch (Exception ex)
                 {

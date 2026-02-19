@@ -53,6 +53,12 @@ namespace Application.DTO.Alerts
     /// </summary>
     public class AlertMetadata
     {
+        /// <summary>
+        /// Unique identifier for correlating this alert across systems and logs.
+        /// Should be the same CorrelationId from the original request/measurement.
+        /// </summary>
+        public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
+
         public string AlertType { get; set; } = string.Empty;
         public int FieldId { get; set; }
         public DateTime DetectedAt { get; set; }

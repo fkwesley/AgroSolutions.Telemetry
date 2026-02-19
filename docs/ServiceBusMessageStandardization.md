@@ -132,12 +132,34 @@ EmailBcc = new List<string> { "archive@agrosolutions.com" }
 ```csharp
 public class AlertMetadata
 {
-    public string AlertType { get; set; }      // Type identifier
-    public int FieldId { get; set; }           // Field identifier
-    public DateTime DetectedAt { get; set; }   // Detection timestamp
-    public string Severity { get; set; }       // Low, Medium, High, Critical
+    public string CorrelationId { get; set; }     // Unique ID for end-to-end tracing
+    public string AlertType { get; set; }         // Type identifier
+    public int FieldId { get; set; }              // Field identifier
+    public DateTime DetectedAt { get; set; }      // Detection timestamp
+    public string Severity { get; set; }          // Low, Medium, High, Critical
 }
 ```
+
+### CorrelationId for Tracing
+
+The `CorrelationId` is automatically generated (Guid) and used for:
+
+1. **End-to-end tracing**: Correlate the alert across multiple systems
+2. **Service Bus native correlation**: Set as both `CorrelationId` property and `ApplicationProperty`
+3. **Log aggregation**: Group related logs by correlation ID
+4. **Troubleshooting**: Track the flow from measurement → analysis → alert → notification
+
+The `ServiceBusPublisher` automatically extracts the `CorrelationId` from `NotificationRequest.Metadata` and adds it to:
+- Service Bus message `CorrelationId` property (native)
+- Service Bus message `ApplicationProperties["CorrelationId"]`
+- Service Bus message `ApplicationProperties["AlertType"]`
+- Service Bus message `ApplicationProperties["FieldId"]`
+- Service Bus message `ApplicationProperties["Severity"]`
+
+This enables:
+- Filtering and routing in Service Bus
+- Distributed tracing (OpenTelemetry, Application Insights)
+- Easy correlation in logs and monitoring tools
 
 ## Service Bus Queue
 
@@ -201,7 +223,7 @@ RECOMMENDED ACTIONS:
     }
 };
 
-await serviceBusPublisher.PublishMessageAsync("alert-required-queue", alertMessage);
+await serviceBusPublisher.PublishMessageAsync("notifications-queue", alertMessage);
 ```
 
 ## Future Enhancements

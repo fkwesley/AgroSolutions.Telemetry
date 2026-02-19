@@ -88,7 +88,7 @@ namespace Infrastructure.Services
                 };
 
                 // Adding custom properties if provided
-                if (customProperties != null)
+                if (customProperties != null && customProperties.Any())
                 {
                     foreach (var kv in customProperties)
                         serviceBusMessage.ApplicationProperties[kv.Key] = kv.Value;

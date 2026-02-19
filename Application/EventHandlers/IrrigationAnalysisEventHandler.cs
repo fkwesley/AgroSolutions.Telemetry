@@ -91,7 +91,16 @@ namespace Application.EventHandlers
                         }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("alert-required-queue", NotificationRequest);
+                    // Prepare custom properties for Service Bus
+                    var customProperties = new Dictionary<string, object>
+                    {
+                        { "CorrelationId", NotificationRequest.Metadata.CorrelationId },
+                        { "AlertType", NotificationRequest.Metadata.AlertType },
+                        { "FieldId", NotificationRequest.Metadata.FieldId },
+                        { "Severity", NotificationRequest.Metadata.Severity }
+                    };
+
+                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", NotificationRequest, customProperties);
 
                     _logger.LogWarning(
                         "Irrigation recommendation sent to Service Bus | Field: {FieldId}, Urgency: {Urgency}, Water: {Water}mm",
@@ -111,3 +120,4 @@ namespace Application.EventHandlers
         }
     }
 }
+
