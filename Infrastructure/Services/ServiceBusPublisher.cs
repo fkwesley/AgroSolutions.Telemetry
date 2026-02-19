@@ -23,7 +23,7 @@ namespace Infrastructure.Services
 
         public ServiceBusPublisher(IConfiguration configuration, ILogger<ServiceBusPublisher>? logger = null)
         {
-            _connectionString = configuration.GetConnectionString("FCGServiceBusConnection");
+            _connectionString = configuration.GetConnectionString("ServiceBusConnection");
             _logger = logger;
         }
 

@@ -55,7 +55,7 @@ namespace Application.Services
         }
 
         /// <summary>
-        /// Processa um evento específico encontrando e executando seu handler.
+        /// Processa um evento específico encontrando e executando todos os seus handlers.
         /// </summary>
         private async Task ProcessEventAsync(IDomainEvent domainEvent)
         {
@@ -63,46 +63,67 @@ namespace Application.Services
             var handlerType = typeof(EventHandlers.IDomainEventHandler<>).MakeGenericType(eventType);
 
             _logger.LogDebug(
-                "Looking for handler: {HandlerType} for event: {EventType}",
+                "Looking for handlers: {HandlerType} for event: {EventType}",
                 handlerType.Name,
                 eventType.Name);
 
-            // Busca o handler no DI
-            var handler = _serviceProvider.GetService(handlerType);
+            // Busca TODOS os handlers registrados para este evento no DI
+            var handlers = _serviceProvider.GetServices(handlerType);
 
-            if (handler == null)
+            if (handlers == null || !handlers.Any())
             {
                 _logger.LogWarning(
-                    "No handler found for event type: {EventType}. Event will be skipped.",
+                    "No handlers found for event type: {EventType}. Event will be skipped.",
                     eventType.Name);
                 return;
             }
 
-            try
+            var handlersList = handlers.ToList();
+            _logger.LogInformation(
+                "Found {HandlerCount} handler(s) for event {EventType}",
+                handlersList.Count,
+                eventType.Name);
+
+            // Processa cada handler encontrado
+            foreach (var handler in handlersList)
             {
-                // Invoca o método HandleAsync do handler
-                var handleMethod = handlerType.GetMethod("HandleAsync");
-                if (handleMethod != null)
+                try
                 {
-                    var task = (Task?)handleMethod.Invoke(handler, new object[] { domainEvent });
-                    if (task != null)
+                    _logger.LogDebug(
+                        "Executing handler {HandlerName} for event {EventType}",
+                        handler.GetType().Name,
+                        eventType.Name);
+
+                    // Invoca o método HandleAsync do handler
+                    var handleMethod = handlerType.GetMethod("HandleAsync");
+                    if (handleMethod != null)
                     {
-                        await task;
+                        var task = (Task?)handleMethod.Invoke(handler, new object[] { domainEvent });
+                        if (task != null)
+                        {
+                            await task;
+                        }
                     }
+
+                    _logger.LogDebug(
+                        "Handler {HandlerName} completed successfully for event {EventType}",
+                        handler.GetType().Name,
+                        eventType.Name);
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error processing event {EventType}",
-                    eventType.Name);
-                
-                // Você pode decidir se quer:
-                // 1. Lançar exceção (para o Service lidar)
-                // 2. Continuar processando outros eventos
-                // 3. Implementar retry logic
-                
-                throw; // Por enquanto, lança exceção
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error processing event {EventType} with handler {HandlerName}",
+                        eventType.Name,
+                        handler.GetType().Name);
+
+                    // Você pode decidir se quer:
+                    // 1. Lançar exceção (para o Service lidar)
+                    // 2. Continuar processando outros handlers
+                    // 3. Implementar retry logic
+
+                    throw; // Por enquanto, lança exceção
+                }
             }
         }
     }
