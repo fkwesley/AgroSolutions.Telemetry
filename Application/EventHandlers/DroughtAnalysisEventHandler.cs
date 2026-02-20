@@ -6,6 +6,7 @@ using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.EventHandlers
 {
@@ -89,23 +90,14 @@ namespace Application.EventHandlers
                             { "{minimumDurationHours}", _settings.MinimumDurationHours.ToString() },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Metadata = new AlertMetadata
-                        {
-                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
-                            AlertType = "DroughtCondition",
-                            FieldId = measurement.FieldId,
-                            DetectedAt = DateTime.UtcNow,
-                            Severity = "High"
-                        }
+                        Priority = PriorityEnum.Critical
                     };
 
-                    // Prepare custom properties for Service Bus
+                    // Prepare custom properties for Service Bus: only CorrelationId and traceparent
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", alertMessage.Metadata.CorrelationId },
-                        { "AlertType", alertMessage.Metadata.AlertType },
-                        { "FieldId", alertMessage.Metadata.FieldId },
-                        { "Severity", alertMessage.Metadata.Severity }
+                        { "CorrelationId", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() },
+                        { "traceparent", Activity.Current?.Id ?? string.Empty }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("notifications-queue", alertMessage, customProperties);

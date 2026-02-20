@@ -9,6 +9,17 @@ namespace Application.DTO.Alerts
     /// 2. Replace placeholders in the template with values from Parameters dictionary
     /// 3. Send the email with the rendered content
     /// </summary>
+    /// <summary>
+    /// Enum para prioridade da notificação.
+    /// </summary>
+    public enum PriorityEnum
+    {
+        Low,
+        Normal,
+        High,
+        Critical
+    }
+
     public class NotificationRequest
     {
         /// <summary>
@@ -48,27 +59,13 @@ namespace Application.DTO.Alerts
         /// </summary>
         [Required]
         public Dictionary<string, string> Parameters { get; set; } = new();
-
         /// <summary>
-        /// Alert metadata for tracking and categorization
+        /// priority level (Low, Normal, High, Urgent).
+        /// Maps to SMTP headers (X-Priority, Importance) for email client display.
+        /// Default: Normal
         /// </summary>
-        public AlertMetadata Metadata { get; set; } = new();
-    }
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
+        public PriorityEnum Priority { get; set; } = PriorityEnum.Normal;
 
-    /// <summary>
-    /// Metadata for alert tracking and categorization
-    /// </summary>
-    public class AlertMetadata
-    {
-        /// <summary>
-        /// Unique identifier for correlating this alert across systems and logs.
-        /// Should be the same CorrelationId from the original request/measurement.
-        /// </summary>
-        public string CorrelationId { get; set; } = string.Empty;
-
-        public string AlertType { get; set; } = string.Empty;
-        public int FieldId { get; set; }
-        public DateTime DetectedAt { get; set; }
-        public string Severity { get; set; } = "Medium"; // Low, Medium, High, Critical
     }
 }

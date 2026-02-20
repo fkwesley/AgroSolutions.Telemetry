@@ -3,7 +3,7 @@
 namespace Domain.Enums
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum LogLevel
+    public enum LogLevelEnum
     {
         Trace,
         Debug,

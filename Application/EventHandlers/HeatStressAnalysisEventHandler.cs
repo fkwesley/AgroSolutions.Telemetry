@@ -6,6 +6,7 @@ using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.EventHandlers
 {
@@ -66,7 +67,7 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var severityLevel = heatStress.Level == Domain.ValueObjects.HeatStressLevel.Severe ? "High" : "Medium";
+                    var severityLevel = heatStress.Level == Domain.ValueObjects.HeatStressLevelEnum.Severe ? "High" : "Medium";
 
                     var notificationRequest = new NotificationRequest
                     {
@@ -87,23 +88,14 @@ namespace Application.EventHandlers
                             { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Metadata = new AlertMetadata
-                        {
-                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
-                            AlertType = "HeatStress",
-                            FieldId = measurement.FieldId,
-                            DetectedAt = DateTime.UtcNow,
-                            Severity = severityLevel
-                        }
+                        Priority = heatStress.Level == Domain.ValueObjects.HeatStressLevelEnum.Severe ? PriorityEnum.Critical : PriorityEnum.High
                     };
 
-                    // Prepare custom properties for Service Bus
+                    // Prepare custom properties for Service Bus: only CorrelationId and traceparent
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
-                        { "AlertType", notificationRequest.Metadata.AlertType },
-                        { "FieldId", notificationRequest.Metadata.FieldId },
-                        { "Severity", notificationRequest.Metadata.Severity }
+                        { "CorrelationId", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() },
+                        { "traceparent", Activity.Current?.Id ?? string.Empty }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);

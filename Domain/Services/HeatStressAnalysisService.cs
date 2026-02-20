@@ -81,14 +81,14 @@ namespace Domain.Services
             return null;
         }
 
-        private HeatStressLevel DetermineStressLevel(decimal avgTemperature)
+        private HeatStressLevelEnum DetermineStressLevel(decimal avgTemperature)
         {
             return avgTemperature switch
             {
-                >= 40 => HeatStressLevel.Severe,
-                >= 37 => HeatStressLevel.High,
-                >= 35 => HeatStressLevel.Moderate,
-                _ => HeatStressLevel.None
+                >= 40 => HeatStressLevelEnum.Severe,
+                >= 37 => HeatStressLevelEnum.High,
+                >= 35 => HeatStressLevelEnum.Moderate,
+                _ => HeatStressLevelEnum.None
             };
         }
     }

@@ -44,7 +44,7 @@ namespace Domain.Services
             var urgency = DetermineUrgency(current.SoilMoisture, criticalMoisture, deficit, trend);
 
             // Se urgência é None, não precisa irrigar ainda
-            if (urgency == IrrigationUrgency.None)
+            if (urgency == IrrigationUrgencyEnum.None)
                 return null;
 
             // Calcular quantidade de água
@@ -74,7 +74,7 @@ namespace Domain.Services
             return recent - older; // Negativo = secando, Positivo = melhorando
         }
 
-        private IrrigationUrgency DetermineUrgency(
+        private IrrigationUrgencyEnum DetermineUrgency(
             decimal currentMoisture, 
             decimal criticalMoisture,
             decimal deficit,
@@ -82,21 +82,21 @@ namespace Domain.Services
         {
             // Crítico: abaixo do threshold crítico
             if (currentMoisture <= criticalMoisture)
-                return IrrigationUrgency.Critical;
+                return IrrigationUrgencyEnum.Critical;
 
             // Alto: déficit grande OU tendência de queda acentuada
             if (deficit > 20 || (deficit > 10 && trend < -3))
-                return IrrigationUrgency.High;
+                return IrrigationUrgencyEnum.High;
 
             // Médio: déficit moderado
             if (deficit > 10 || (deficit > 5 && trend < -2))
-                return IrrigationUrgency.Medium;
+                return IrrigationUrgencyEnum.Medium;
 
             // Baixo: déficit pequeno mas presente
             if (deficit > 5)
-                return IrrigationUrgency.Low;
+                return IrrigationUrgencyEnum.Low;
 
-            return IrrigationUrgency.None;
+            return IrrigationUrgencyEnum.None;
         }
 
         private decimal CalculateWaterAmount(decimal deficit, decimal soilCapacity)
@@ -106,7 +106,7 @@ namespace Domain.Services
             return (deficit / 100m) * soilCapacity;
         }
 
-        private string GenerateReason(decimal deficit, decimal trend, IrrigationUrgency urgency)
+        private string GenerateReason(decimal deficit, decimal trend, IrrigationUrgencyEnum urgency)
         {
             var trendText = trend switch
             {
@@ -118,10 +118,10 @@ namespace Domain.Services
 
             return urgency switch
             {
-                IrrigationUrgency.Critical => $"Umidade crítica com déficit de {deficit:F1}%, tendência {trendText}",
-                IrrigationUrgency.High => $"Déficit hídrico alto ({deficit:F1}%), tendência {trendText}",
-                IrrigationUrgency.Medium => $"Déficit moderado ({deficit:F1}%), tendência {trendText}",
-                IrrigationUrgency.Low => $"Déficit leve ({deficit:F1}%), monitorar próximas 48h",
+                IrrigationUrgencyEnum.Critical => $"Umidade crítica com déficit de {deficit:F1}%, tendência {trendText}",
+                IrrigationUrgencyEnum.High => $"Déficit hídrico alto ({deficit:F1}%), tendência {trendText}",
+                IrrigationUrgencyEnum.Medium => $"Déficit moderado ({deficit:F1}%), tendência {trendText}",
+                IrrigationUrgencyEnum.Low => $"Déficit leve ({deficit:F1}%), monitorar próximas 48h",
                 _ => ""
             };
         }

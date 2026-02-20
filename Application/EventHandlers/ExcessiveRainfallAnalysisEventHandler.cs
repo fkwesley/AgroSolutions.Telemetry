@@ -4,6 +4,7 @@ using Application.Interfaces;
 using Application.Settings;
 using Domain.Events;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.EventHandlers
 {
@@ -64,33 +65,23 @@ namespace Application.EventHandlers
                             { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Metadata = new AlertMetadata
-                        {
-                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
-                            AlertType = "ExcessiveRainfall",
-                            FieldId = measurement.FieldId,
-                            DetectedAt = DateTime.UtcNow,
-                            Severity = "High"
-                        }
+                        Priority = PriorityEnum.High,
                     };
 
-                    // Prepare custom properties for Service Bus
+                    // Prepare custom properties for Service Bus: only CorrelationId and traceparent
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
-                        { "AlertType", notificationRequest.Metadata.AlertType },
-                        { "FieldId", notificationRequest.Metadata.FieldId },
-                        { "Severity", notificationRequest.Metadata.Severity }
+                        { "CorrelationId", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() },
+                        { "traceparent", Activity.Current?.Id ?? string.Empty }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);
 
                     _logger.LogWarning(
-                        "Excessive rainfall alert sent to Service Bus | Field: {FieldId}, Precipitation: {Precipitation}mm, Threshold: {Threshold}mm, CorrelationId: {CorrelationId}",
+                        "Excessive rainfall alert sent to Service Bus | Field: {FieldId}, Precipitation: {Precipitation}mm, Threshold: {Threshold}mm",
                         measurement.FieldId,
                         measurement.Precipitation,
-                        _settings.Threshold,
-                        notificationRequest.Metadata.CorrelationId);
+                        _settings.Threshold);
                 }
                 catch (Exception ex)
                 {

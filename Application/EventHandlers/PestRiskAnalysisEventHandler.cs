@@ -7,6 +7,7 @@ using Domain.Repositories;
 using Domain.Services;
 using Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.EventHandlers
 {
@@ -63,13 +64,13 @@ namespace Application.EventHandlers
                 _settings.MinimumFavorableDays);
 
             // Se detectou risco médio ou superior, publicar DIRETO no Service Bus
-            if (pestRisk != null && pestRisk.RiskLevel >= PestRiskLevel.Medium)
+            if (pestRisk != null && pestRisk.RiskLevel >= PestRiskLevelEnum.Medium)
             {
                 try
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var severityLevel = pestRisk.RiskLevel == PestRiskLevel.High ? "High" : "Medium";
+                    var severityLevel = pestRisk.RiskLevel == PestRiskLevelEnum.High ? "High" : "Medium";
                     var riskFactorsText = string.Join("\n", pestRisk.RiskFactors.Select(rf => $"- {rf}"));
 
                     var notificationRequest = new NotificationRequest
@@ -94,27 +95,18 @@ namespace Application.EventHandlers
                             { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Metadata = new AlertMetadata
-                        {
-                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
-                            AlertType = "PestRisk",
-                            FieldId = measurement.FieldId,
-                            DetectedAt = DateTime.UtcNow,
-                            Severity = severityLevel
-                        }
+                        Priority = pestRisk.RiskLevel == PestRiskLevelEnum.High || pestRisk.RiskLevel == PestRiskLevelEnum.Critical ? PriorityEnum.High : PriorityEnum.Normal
                     };
 
-                    // Prepare custom properties for Service Bus
+                    // Prepare custom properties for Service Bus: only CorrelationId and traceparent
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
-                        { "AlertType", notificationRequest.Metadata.AlertType },
-                        { "FieldId", notificationRequest.Metadata.FieldId },
-                        { "Severity", notificationRequest.Metadata.Severity }
+                        { "CorrelationId", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() },
+                        { "traceparent", Activity.Current?.Id ?? string.Empty }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);
-
+                    
                     _logger.LogWarning(
                         "Pest risk alert sent to Service Bus | Field: {FieldId}, Risk: {RiskLevel}, Days: {Days}",
                         measurement.FieldId,

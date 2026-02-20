@@ -151,12 +151,12 @@ namespace Tests.ArchitectureTests
 
                 var isResponse = typeName.EndsWith("Response") ||
                                 typeName.EndsWith("Parameters") || // Helper classes
+                                typeName.EndsWith("Enum") || // Helper classes
                                 typeName == "PagedResponse" ||
                                 typeName == "Link" ||
                                 typeName == "ComponentHealth" ||
                                 typeName == "HealthResponse" ||
-                                typeName == "NotificationRequest" ||      // Internal DTO for Service Bus
-                                typeName == "AlertMetadata";       // Alert metadata
+                                typeName == "NotificationRequest";      // Internal DTO for Service Bus
 
                 if (!isResponse)
                 {

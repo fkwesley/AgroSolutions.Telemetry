@@ -4,7 +4,7 @@ namespace Domain.ValueObjects
     /// Recomendação de irrigação calculada baseada em condições do solo e clima.
     /// </summary>
     public record IrrigationRecommendation(
-        IrrigationUrgency Urgency,       // Urgência da irrigação
+        IrrigationUrgencyEnum Urgency,       // Urgência da irrigação
         decimal WaterAmountMM,            // Quantidade de água recomendada (mm)
         decimal CurrentMoisture,          // Umidade atual (%)
         decimal TargetMoisture,           // Umidade alvo (%)
@@ -22,7 +22,7 @@ namespace Domain.ValueObjects
         public decimal MoistureDeficit => TargetMoisture - CurrentMoisture;
     }
 
-    public enum IrrigationUrgency
+    public enum IrrigationUrgencyEnum
     {
         None,       // Não precisa irrigar
         Low,        // Irrigar em 48-72h
@@ -54,7 +54,7 @@ namespace Domain.ValueObjects
     /// Resultado da análise de estresse térmico.
     /// </summary>
     public record HeatStressCondition(
-        HeatStressLevel Level,           // Nível de estresse
+        HeatStressLevelEnum Level,           // Nível de estresse
         decimal AverageTemperature,      // Temperatura média no período
         decimal PeakTemperature,         // Temperatura máxima
         TimeSpan Duration,               // Duração do estresse
@@ -64,7 +64,7 @@ namespace Domain.ValueObjects
         public double DurationInHours => Duration.TotalHours;
     }
 
-    public enum HeatStressLevel
+    public enum HeatStressLevelEnum
     {
         None,       // Temperatura OK
         Moderate,   // 30-35°C
@@ -76,14 +76,14 @@ namespace Domain.ValueObjects
     /// Avaliação de risco de pragas baseada em condições climáticas.
     /// </summary>
     public record PestRiskAssessment(
-        PestRiskLevel RiskLevel,         // Nível de risco
+        PestRiskLevelEnum RiskLevel,         // Nível de risco
         int FavorableDaysCount,          // Dias consecutivos com condições favoráveis
         decimal AverageTemperature,      // Temperatura média
         decimal AverageMoisture,         // Umidade média
         string RiskFactors               // Fatores que contribuem para o risco
     );
 
-    public enum PestRiskLevel
+    public enum PestRiskLevelEnum
     {
         Minimal,    // Condições desfavoráveis para pragas
         Low,        // Poucas condições favoráveis

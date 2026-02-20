@@ -75,7 +75,7 @@ namespace Domain.Services
                     var recentAvgMoisture = dailyConditions.Average(d => d.AvgMoisture);
 
                     return new PestRiskAssessment(
-                        RiskLevel: PestRiskLevel.Low,
+                        RiskLevel: PestRiskLevelEnum.Low,
                         FavorableDaysCount: maxConsecutiveDays,
                         AverageTemperature: recentAvgTemp,
                         AverageMoisture: recentAvgMoisture,
@@ -105,7 +105,7 @@ namespace Domain.Services
             );
         }
 
-        private PestRiskLevel DetermineRiskLevel(
+        private PestRiskLevelEnum DetermineRiskLevel(
             int consecutiveDays,
             decimal avgTemp,
             decimal avgMoisture,
@@ -130,11 +130,11 @@ namespace Domain.Services
 
             return score switch
             {
-                >= 9 => PestRiskLevel.Critical,
-                >= 7 => PestRiskLevel.High,
-                >= 5 => PestRiskLevel.Medium,
-                >= 3 => PestRiskLevel.Low,
-                _ => PestRiskLevel.Minimal
+                >= 9 => PestRiskLevelEnum.Critical,
+                >= 7 => PestRiskLevelEnum.High,
+                >= 5 => PestRiskLevelEnum.Medium,
+                >= 3 => PestRiskLevelEnum.Low,
+                _ => PestRiskLevelEnum.Minimal
             };
         }
 

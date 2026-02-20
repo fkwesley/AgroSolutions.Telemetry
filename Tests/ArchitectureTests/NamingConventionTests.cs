@@ -57,7 +57,7 @@ namespace Tests.ArchitectureTests
         }
 
         [Fact]
-        public void DTOs_Request_ShouldEndWith_Request()
+        public void DTOs_ShouldEndWith_Request()
         {
             // Arrange & Act
             var types = Types.InAssembly(typeof(Application.DTO.FieldMeasurement.AddFieldMeasurementRequest).Assembly)
@@ -75,6 +75,7 @@ namespace Tests.ArchitectureTests
                 var hasValidSuffix = typeName.EndsWith("Request") ||
                                    typeName.EndsWith("Response") ||
                                    typeName.EndsWith("Parameters") ||
+                                   typeName.EndsWith("Enum") ||
                                    typeName == "Link" ||
                                    typeName == "PagedResponse" ||
                                    typeName == "ComponentHealth" ||
@@ -83,37 +84,6 @@ namespace Tests.ArchitectureTests
                                    typeName == "AlertMetadata";
 
                 Assert.True(hasValidSuffix, 
-                    $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");
-            }
-        }
-
-        [Fact]
-        public void DTOs_Response_ShouldEndWith_Response()
-        {
-            // Arrange & Act
-            var types = Types.InAssembly(typeof(Application.DTO.FieldMeasurement.FieldMeasurementResponse).Assembly)
-                .That()
-                .ResideInNamespace("Application.DTO")
-                .And()
-                .AreClasses()
-                .GetTypes();
-
-            // Assert - DTOs devem ter nomenclatura consistente
-            foreach (var type in types)
-            {
-                var typeName = type.Name.Contains('`') ? type.Name.Substring(0, type.Name.IndexOf('`')) : type.Name;
-
-                var hasValidSuffix = typeName.EndsWith("Request") ||
-                                   typeName.EndsWith("Response") ||
-                                   typeName.EndsWith("Parameters") ||
-                                   typeName == "Link" ||
-                                   typeName == "PagedResponse" ||
-                                   typeName == "ComponentHealth" ||
-                                   typeName == "HealthResponse" ||
-                                   typeName == "NotificationRequest" ||
-                                   typeName == "AlertMetadata";
-
-                Assert.True(hasValidSuffix,
                     $"{type.Name} should end with 'Request', 'Response', 'Parameters' or be a known DTO type");
             }
         }

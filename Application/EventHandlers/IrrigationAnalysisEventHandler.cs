@@ -6,6 +6,7 @@ using Domain.Events;
 using Domain.Repositories;
 using Domain.Services;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Application.EventHandlers
 {
@@ -67,15 +68,15 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
-                    var severityLevel = recommendation.Urgency == Domain.ValueObjects.IrrigationUrgency.Critical ? "High" : "Medium";
+                    var severityLevel = recommendation.Urgency == Domain.ValueObjects.IrrigationUrgencyEnum.Critical ? "High" : "Medium";
                     var moistureDeficit = _settings.OptimalMoisture - measurement.SoilMoisture;
 
                     var urgencyAction = recommendation.Urgency switch
                     {
-                        Domain.ValueObjects.IrrigationUrgency.Critical => "⚡ Iniciar irrigação IMEDIATAMENTE - situação crítica",
-                        Domain.ValueObjects.IrrigationUrgency.High => "🚨 Iniciar irrigação nas próximas 12-24 horas",
-                        Domain.ValueObjects.IrrigationUrgency.Medium => "🕐 Planejar irrigação para as próximas 24-48 horas",
-                        Domain.ValueObjects.IrrigationUrgency.Low => "📅 Considerar irrigação nos próximos 2-3 dias",
+                        Domain.ValueObjects.IrrigationUrgencyEnum.Critical => "⚡ Iniciar irrigação IMEDIATAMENTE - situação crítica",
+                        Domain.ValueObjects.IrrigationUrgencyEnum.High => "🚨 Iniciar irrigação nas próximas 12-24 horas",
+                        Domain.ValueObjects.IrrigationUrgencyEnum.Medium => "🕐 Planejar irrigação para as próximas 24-48 horas",
+                        Domain.ValueObjects.IrrigationUrgencyEnum.Low => "📅 Considerar irrigação nos próximos 2-3 dias",
                         _ => "✅ Monitorar condições do solo"
                     };
 
@@ -101,23 +102,21 @@ namespace Application.EventHandlers
                             { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Metadata = new AlertMetadata
+                        Priority = recommendation.Urgency switch
                         {
-                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
-                            AlertType = "IrrigationRecommendation",
-                            FieldId = measurement.FieldId,
-                            DetectedAt = DateTime.UtcNow,
-                            Severity = severityLevel
+                            Domain.ValueObjects.IrrigationUrgencyEnum.Critical => PriorityEnum.Critical,
+                            Domain.ValueObjects.IrrigationUrgencyEnum.High => PriorityEnum.High,
+                            Domain.ValueObjects.IrrigationUrgencyEnum.Medium => PriorityEnum.Normal,
+                            Domain.ValueObjects.IrrigationUrgencyEnum.Low => PriorityEnum.Low,
+                            _ => PriorityEnum.Normal
                         }
                     };
 
-                    // Prepare custom properties for Service Bus
+                    // Prepare custom properties for Service Bus: only CorrelationId and traceparent
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
-                        { "AlertType", notificationRequest.Metadata.AlertType },
-                        { "FieldId", notificationRequest.Metadata.FieldId },
-                        { "Severity", notificationRequest.Metadata.Severity }
+                        { "CorrelationId", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() },
+                        { "traceparent", Activity.Current?.Id ?? string.Empty }
                     };
 
                     await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);
