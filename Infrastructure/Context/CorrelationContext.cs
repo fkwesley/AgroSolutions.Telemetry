@@ -1,24 +1,26 @@
+using Application.Interfaces;
+
 namespace Infrastructure.Context
 {
     /// <summary>
-    /// Gerencia o contexto de correlaÁ„o (LogId e CorrelationId) usando AsyncLocal
-    /// para preservar os valores atravÈs de chamadas assÌncronas e threads.
+    /// Manages correlation context (LogId and CorrelationId) using AsyncLocal
+    /// to preserve values across asynchronous calls and threads.
     /// 
-    /// ? FUNCIONA automaticamente em:
-    /// - await/async em qualquer lugar
+    /// ‚úÖ WORKS automatically in:
+    /// - await/async anywhere
     /// - Task.WhenAll(), Task.WhenAny()
     /// - HttpClient, Entity Framework, Service Bus
     /// - Domain Event Handlers
     /// 
-    /// ? N√O funciona em:
-    /// - Task.Run() sem capturar contexto antes
+    /// ‚ùå DOES NOT work in:
+    /// - Task.Run() without capturing context first
     /// - ThreadPool.QueueUserWorkItem()
-    /// - Background jobs (Hangfire, Quartz)
+    /// - Background jobs (Hangfire, Quartz) without explicit propagation
     /// 
-    /// Exemplo de uso com Task.Run():
+    /// Example usage with Task.Run():
     /// <code>
-    /// var logId = CorrelationContext.LogId;
-    /// var correlationId = CorrelationContext.CorrelationId;
+    /// var logId = _correlationContext.LogId;
+    /// var correlationId = _correlationContext.CorrelationId;
     /// 
     /// _ = Task.Run(async () => 
     /// {
@@ -30,15 +32,11 @@ namespace Infrastructure.Context
     /// });
     /// </code>
     /// </summary>
-    public static class CorrelationContext
+    public class CorrelationContext : ICorrelationContext
     {
         private static readonly AsyncLocal<CorrelationData> _data = new();
 
-        /// <summary>
-        /// LogId ˙nico para esta requisiÁ„o HTTP especÌfica.
-        /// Gerado por esta API.
-        /// </summary>
-        public static Guid? LogId
+        public Guid? LogId
         {
             get => _data.Value?.LogId;
             set
@@ -48,11 +46,7 @@ namespace Infrastructure.Context
             }
         }
 
-        /// <summary>
-        /// CorrelationId compartilhado entre m˙ltiplas APIs na jornada do usu·rio.
-        /// Propagado via header X-Correlation-Id ou gerado pela primeira API.
-        /// </summary>
-        public static Guid? CorrelationId
+        public Guid? CorrelationId
         {
             get => _data.Value?.CorrelationId;
             set
@@ -62,10 +56,7 @@ namespace Infrastructure.Context
             }
         }
 
-        /// <summary>
-        /// Nome do serviÁo que gerou o log (da configuraÁ„o).
-        /// </summary>
-        public static string? ServiceName
+        public string? ServiceName
         {
             get => _data.Value?.ServiceName;
             set
@@ -75,10 +66,7 @@ namespace Infrastructure.Context
             }
         }
 
-        /// <summary>
-        /// UserId do usu·rio autenticado (se disponÌvel).
-        /// </summary>
-        public static string? UserId
+        public string? UserId
         {
             get => _data.Value?.UserId;
             set
@@ -88,10 +76,7 @@ namespace Infrastructure.Context
             }
         }
 
-        /// <summary>
-        /// Limpa o contexto atual (˙til em testes).
-        /// </summary>
-        public static void Clear()
+        public void Clear()
         {
             _data.Value = null!;
         }

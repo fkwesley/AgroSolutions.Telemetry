@@ -13,6 +13,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         private readonly Mock<IMessagePublisherFactory> _publisherFactoryMock;
         private readonly Mock<IMessagePublisher> _publisherMock;
         private readonly Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>> _loggerMock;
+        private readonly Mock<ICorrelationContext> _correlationContextMock;
         private readonly global::Application.Settings.ExcessiveRainfallSettings _settings;
         private readonly ExcessiveRainfallAnalysisEventHandler _handler;
 
@@ -21,16 +22,22 @@ namespace Tests.UnitTests.Application.EventHandlers
             _publisherFactoryMock = new Mock<IMessagePublisherFactory>();
             _publisherMock = new Mock<IMessagePublisher>();
             _loggerMock = new Mock<ILogger<ExcessiveRainfallAnalysisEventHandler>>();
+            _correlationContextMock = new Mock<ICorrelationContext>();
             _settings = new global::Application.Settings.ExcessiveRainfallSettings { Threshold = 60 };
 
             _publisherFactoryMock
                 .Setup(x => x.GetPublisher("ServiceBus"))
                 .Returns(_publisherMock.Object);
 
+            // Setup CorrelationContext mock
+            _correlationContextMock.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+            _correlationContextMock.Setup(x => x.LogId).Returns(Guid.NewGuid());
+
             _handler = new ExcessiveRainfallAnalysisEventHandler(
                 _publisherFactoryMock.Object,
                 _loggerMock.Object,
-                _settings);
+                _settings,
+                _correlationContextMock.Object);
         }
 
         [Fact]

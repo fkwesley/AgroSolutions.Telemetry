@@ -1,5 +1,5 @@
-using Application.Constants;
 using Application.DTO.Alerts;
+using Application.Helpers;
 using Application.Interfaces;
 using Application.Settings;
 using Domain.Events;
@@ -20,15 +20,18 @@ namespace Application.EventHandlers
         private readonly IMessagePublisherFactory _publisherFactory;
         private readonly ILogger<ExcessiveRainfallAnalysisEventHandler> _logger;
         private readonly ExcessiveRainfallSettings _settings;
+        private readonly ICorrelationContext _correlationContext;
 
         public ExcessiveRainfallAnalysisEventHandler(
             IMessagePublisherFactory publisherFactory,
             ILogger<ExcessiveRainfallAnalysisEventHandler> logger,
-            ExcessiveRainfallSettings settings)
+            ExcessiveRainfallSettings settings,
+            ICorrelationContext correlationContext)
         {
             _publisherFactory = publisherFactory ?? throw new ArgumentNullException(nameof(publisherFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _correlationContext = correlationContext ?? throw new ArgumentNullException(nameof(correlationContext));
         }
 
         public async Task HandleAsync(MeasurementCreatedEvent domainEvent)
@@ -42,19 +45,28 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
+                    var excess = measurement.Precipitation - _settings.Threshold;
+                    var percentAbove = (excess / _settings.Threshold * 100);
+
                     var notificationRequest = new NotificationRequest
                     {
+                        TemplateId = "ExcessiveRainfall",
                         EmailTo = new List<string> { measurement.AlertEmailTo },
                         EmailCc = new List<string>(),
                         EmailBcc = new List<string>(),
-                        Subject = string.Format(AlertMessagesConstant.ExcessiveRainfall.SubjectTemplate, measurement.FieldId),
-                        Body = AlertMessagesConstant.ExcessiveRainfall.GetBody(
-                            measurement.FieldId,
-                            measurement.Precipitation,
-                            _settings.Threshold,
-                            DateTime.UtcNow),
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "{fieldId}", measurement.FieldId.ToString() },
+                            { "{precipitation}", measurement.Precipitation.ToString("F1") },
+                            { "{threshold}", _settings.Threshold.ToString("F1") },
+                            { "{excess}", excess.ToString("F1") },
+                            { "{percentAbove}", percentAbove.ToString("F1") },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
+                        },
                         Metadata = new AlertMetadata
                         {
+                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
                             AlertType = "ExcessiveRainfall",
                             FieldId = measurement.FieldId,
                             DetectedAt = DateTime.UtcNow,

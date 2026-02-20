@@ -1,5 +1,5 @@
-using Application.Constants;
 using Application.DTO.Alerts;
+using Application.Helpers;
 using Application.Interfaces;
 using Application.Settings;
 using Domain.Events;
@@ -25,19 +25,22 @@ namespace Application.EventHandlers
         private readonly IMessagePublisherFactory _publisherFactory;
         private readonly ILogger<DroughtAnalysisEventHandler> _logger;
         private readonly DroughtAlertSettings _settings;
+        private readonly ICorrelationContext _correlationContext;
 
         public DroughtAnalysisEventHandler(
             IFieldMeasurementRepository repository,
             IDroughtDetectionService droughtDetection,
             IMessagePublisherFactory publisherFactory,
             ILogger<DroughtAnalysisEventHandler> logger,
-            DroughtAlertSettings settings)
+            DroughtAlertSettings settings,
+            ICorrelationContext correlationContext)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _droughtDetection = droughtDetection ?? throw new ArgumentNullException(nameof(droughtDetection));
             _publisherFactory = publisherFactory ?? throw new ArgumentNullException(nameof(publisherFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _correlationContext = correlationContext ?? throw new ArgumentNullException(nameof(correlationContext));
         }
 
         public async Task HandleAsync(MeasurementCreatedEvent domainEvent)
@@ -63,23 +66,32 @@ namespace Application.EventHandlers
                 {
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
+                    var moistureDeficit = _settings.Threshold - measurement.SoilMoisture;
+                    var durationDays = drought.DurationInHours / 24;
+
                     var alertMessage = new NotificationRequest
                     {
+                        TemplateId = "Drought",
                         EmailTo = new List<string> { measurement.AlertEmailTo },
                         EmailCc = new List<string>(),
                         EmailBcc = new List<string>(),
-                        Subject = string.Format(AlertMessagesConstant.Drought.SubjectTemplate, measurement.FieldId),
-                        Body = AlertMessagesConstant.Drought.GetBody(
-                            measurement.FieldId,
-                            measurement.SoilMoisture,
-                            _settings.Threshold,
-                            drought.StartTime,
-                            drought.DurationInHours,
-                            _settings.HistoryDays,
-                            _settings.MinimumDurationHours,
-                            DateTime.UtcNow),
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "{fieldId}", measurement.FieldId.ToString() },
+                            { "{soilMoisture}", measurement.SoilMoisture.ToString("F1") },
+                            { "{threshold}", _settings.Threshold.ToString("F1") },
+                            { "{moistureDeficit}", moistureDeficit.ToString("F1") },
+                            { "{durationHours}", drought.DurationInHours.ToString("F1") },
+                            { "{durationDays}", durationDays.ToString("F1") },
+                            { "{firstLowMoistureDetected}", DateTimeHelper.ConvertUtcToTimeZone(drought.StartTime, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{historyDays}", _settings.HistoryDays.ToString() },
+                            { "{minimumDurationHours}", _settings.MinimumDurationHours.ToString() },
+                            { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
+                        },
                         Metadata = new AlertMetadata
                         {
+                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
                             AlertType = "DroughtCondition",
                             FieldId = measurement.FieldId,
                             DetectedAt = DateTime.UtcNow,

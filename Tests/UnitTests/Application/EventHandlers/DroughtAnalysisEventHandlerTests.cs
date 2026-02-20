@@ -16,6 +16,7 @@ namespace Tests.UnitTests.Application.EventHandlers
         private readonly Mock<IMessagePublisherFactory> _publisherFactoryMock;
         private readonly Mock<IMessagePublisher> _publisherMock;
         private readonly Mock<ILogger<DroughtAnalysisEventHandler>> _loggerMock;
+        private readonly Mock<ICorrelationContext> _correlationContextMock;
         private readonly global::Application.Settings.DroughtAlertSettings _settings;
         private readonly DroughtAnalysisEventHandler _handler;
 
@@ -26,18 +27,24 @@ namespace Tests.UnitTests.Application.EventHandlers
             _publisherFactoryMock = new Mock<IMessagePublisherFactory>();
             _publisherMock = new Mock<IMessagePublisher>();
             _loggerMock = new Mock<ILogger<DroughtAnalysisEventHandler>>();
+            _correlationContextMock = new Mock<ICorrelationContext>();
             _settings = new global::Application.Settings.DroughtAlertSettings();
 
             _publisherFactoryMock
                 .Setup(x => x.GetPublisher("ServiceBus"))
                 .Returns(_publisherMock.Object);
 
+            // Setup CorrelationContext mock
+            _correlationContextMock.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+            _correlationContextMock.Setup(x => x.LogId).Returns(Guid.NewGuid());
+
             _handler = new DroughtAnalysisEventHandler(
                 _repositoryMock.Object,
                 _droughtDetectionMock.Object,
                 _publisherFactoryMock.Object,
                 _loggerMock.Object,
-                _settings);
+                _settings,
+                _correlationContextMock.Object);
         }
 
         [Fact]

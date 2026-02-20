@@ -3,12 +3,21 @@ using System.ComponentModel.DataAnnotations;
 namespace Application.DTO.Alerts
 {
     /// <summary>
-    /// Standardized alert message payload for Service Bus.
-    /// All field analysis handlers send alerts using this format.
-    /// The consumer will use this to send email notifications.
+    /// Template-based notification request for Service Bus.
+    /// The consumer (notification service) will:
+    /// 1. Load the template based on TemplateId
+    /// 2. Replace placeholders in the template with values from Parameters dictionary
+    /// 3. Send the email with the rendered content
     /// </summary>
     public class NotificationRequest
     {
+        /// <summary>
+        /// Template identifier (e.g., "Drought", "ExcessiveRainfall", "Irrigation")
+        /// The notification service will use this to load the appropriate email template.
+        /// </summary>
+        [Required]
+        public string TemplateId { get; set; } = string.Empty;
+
         /// <summary>
         /// Email recipients (primary)
         /// </summary>
@@ -26,21 +35,19 @@ namespace Application.DTO.Alerts
         public List<string> EmailBcc { get; set; } = new();
 
         /// <summary>
-        /// Email subject line
+        /// Template parameters for placeholder replacement.
+        /// Key: Placeholder name (e.g., "{fieldId}", "{soilMoisture}")
+        /// Value: Actual value to replace the placeholder with
+        /// 
+        /// Example:
+        /// {
+        ///   "{fieldId}": "42",
+        ///   "{detectedAt}": "2026-02-19 15:30:00 UTC",
+        ///   "{soilMoisture}": "15.5"
+        /// }
         /// </summary>
         [Required]
-        public string Subject { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Email body with detailed explanation of the alert
-        /// Should include:
-        /// - What was evaluated
-        /// - Current metrics
-        /// - Why this is important
-        /// - Recommended actions (if applicable)
-        /// </summary>
-        [Required]
-        public string Body { get; set; } = string.Empty;
+        public Dictionary<string, string> Parameters { get; set; } = new();
 
         /// <summary>
         /// Alert metadata for tracking and categorization
@@ -57,7 +64,7 @@ namespace Application.DTO.Alerts
         /// Unique identifier for correlating this alert across systems and logs.
         /// Should be the same CorrelationId from the original request/measurement.
         /// </summary>
-        public string CorrelationId { get; set; } = Guid.NewGuid().ToString();
+        public string CorrelationId { get; set; } = string.Empty;
 
         public string AlertType { get; set; } = string.Empty;
         public int FieldId { get; set; }

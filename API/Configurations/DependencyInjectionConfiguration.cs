@@ -49,6 +49,12 @@ public static class DependencyInjectionConfiguration
         // Elastic Services (Generic)
         builder.Services.AddSingleton<IElasticService, ElasticService>();
 
+        // Correlation Context - AsyncLocal implementation for distributed tracing
+        // #SOLID - Dependency Inversion Principle (DIP)
+        // Application depends on ICorrelationContext (abstraction)
+        // Infrastructure provides CorrelationContext (implementation)
+        builder.Services.AddSingleton<ICorrelationContext, Infrastructure.Context.CorrelationContext>();
+
         // Domain Services
         // #DDD - Domain Services encapsulam lógica de negócio complexa que não cabe em uma única entidade
         builder.Services.AddScoped<IDroughtDetectionService, DroughtDetectionService>();

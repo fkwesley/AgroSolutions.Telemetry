@@ -1,5 +1,5 @@
-using Application.Constants;
 using Application.DTO.Alerts;
+using Application.Helpers;
 using Application.Interfaces;
 using Application.Settings;
 using Domain.Events;
@@ -25,19 +25,22 @@ namespace Application.EventHandlers
         private readonly IMessagePublisherFactory _publisherFactory;
         private readonly ILogger<HeatStressAnalysisEventHandler> _logger;
         private readonly HeatStressSettings _settings;
+        private readonly ICorrelationContext _correlationContext;
 
         public HeatStressAnalysisEventHandler(
             IFieldMeasurementRepository repository,
             IHeatStressAnalysisService heatStressService,
             IMessagePublisherFactory publisherFactory,
             ILogger<HeatStressAnalysisEventHandler> logger,
-            HeatStressSettings settings)
+            HeatStressSettings settings,
+            ICorrelationContext correlationContext)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _heatStressService = heatStressService ?? throw new ArgumentNullException(nameof(heatStressService));
             _publisherFactory = publisherFactory ?? throw new ArgumentNullException(nameof(publisherFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _correlationContext = correlationContext ?? throw new ArgumentNullException(nameof(correlationContext));
         }
 
         public async Task HandleAsync(MeasurementCreatedEvent domainEvent)
@@ -64,24 +67,29 @@ namespace Application.EventHandlers
                     var serviceBusPublisher = _publisherFactory.GetPublisher("ServiceBus");
 
                     var severityLevel = heatStress.Level == Domain.ValueObjects.HeatStressLevel.Severe ? "High" : "Medium";
-                    var NotificationRequest = new NotificationRequest
+
+                    var notificationRequest = new NotificationRequest
                     {
+                        TemplateId = "HeatStress",
                         EmailTo = new List<string> { measurement.AlertEmailTo },
                         EmailCc = new List<string>(),
                         EmailBcc = new List<string>(),
-                        Subject = string.Format(AlertMessagesConstant.HeatStress.SubjectTemplate, measurement.FieldId, heatStress.Level),
-                        Body = AlertMessagesConstant.HeatStress.GetBody(
-                            measurement.FieldId,
-                            heatStress.Level.ToString(),
-                            (decimal)heatStress.DurationInHours,
-                            heatStress.AverageTemperature,
-                            heatStress.PeakTemperature,
-                            _settings.HistoryHours,
-                            _settings.CriticalTemperature,
-                            _settings.MinimumDurationHours,
-                            DateTime.UtcNow),
+                        Parameters = new Dictionary<string, string>
+                        {
+                            { "{fieldId}", measurement.FieldId.ToString() },
+                            { "{stressLevel}", heatStress.Level.ToString() },
+                            { "{durationHours}", heatStress.DurationInHours.ToString("F1") },
+                            { "{averageTemperature}", heatStress.AverageTemperature.ToString("F1") },
+                            { "{peakTemperature}", heatStress.PeakTemperature.ToString("F1") },
+                            { "{historyHours}", _settings.HistoryHours.ToString() },
+                            { "{criticalTemperature}", _settings.CriticalTemperature.ToString("F1") },
+                            { "{minimumDurationHours}", _settings.MinimumDurationHours.ToString() },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
+                        },
                         Metadata = new AlertMetadata
                         {
+                            CorrelationId = _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString(),
                             AlertType = "HeatStress",
                             FieldId = measurement.FieldId,
                             DetectedAt = DateTime.UtcNow,
@@ -92,13 +100,13 @@ namespace Application.EventHandlers
                     // Prepare custom properties for Service Bus
                     var customProperties = new Dictionary<string, object>
                     {
-                        { "CorrelationId", NotificationRequest.Metadata.CorrelationId },
-                        { "AlertType", NotificationRequest.Metadata.AlertType },
-                        { "FieldId", NotificationRequest.Metadata.FieldId },
-                        { "Severity", NotificationRequest.Metadata.Severity }
+                        { "CorrelationId", notificationRequest.Metadata.CorrelationId },
+                        { "AlertType", notificationRequest.Metadata.AlertType },
+                        { "FieldId", notificationRequest.Metadata.FieldId },
+                        { "Severity", notificationRequest.Metadata.Severity }
                     };
 
-                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", NotificationRequest, customProperties);
+                    await serviceBusPublisher.PublishMessageAsync("notifications-queue", notificationRequest, customProperties);
 
                     _logger.LogWarning(
                         "Heat stress alert sent to Service Bus | Field: {FieldId}, Level: {Level}, Duration: {Hours:F1}h, Peak: {Peak}°C",
