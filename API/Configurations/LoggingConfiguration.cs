@@ -32,7 +32,7 @@ namespace API.Configurations
                 .Enrich.WithMachineName()
                 .Enrich.WithThreadId()
                 .WriteTo.Console(
-                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}");
+                    outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}");
 
             // Configura sinks baseado no Provider (Database, Elastic, NewRelic, ou combinações)
             switch (loggerProvider.ToLower())
