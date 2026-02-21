@@ -41,7 +41,7 @@ namespace Infrastructure.Repositories
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            var cosmosConnectionString = configuration.GetConnectionString("AgroDbConnection");
+            var cosmosConnectionString = configuration.GetConnectionString("TelemetryDbConnection");
             _databaseId = configuration["CosmosDb:DatabaseId"] ?? "AgroSolutionsDb";
 
             if (!string.IsNullOrEmpty(cosmosConnectionString))

@@ -35,7 +35,7 @@ namespace Infrastructure.Services.HealthCheck
             {
                 _logger.LogInformation("Starting CosmosDB health check");
 
-                var connectionString = _configuration.GetConnectionString("AgroDbConnection");
+                var connectionString = _configuration.GetConnectionString("TelemetryDbConnection");
 
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
