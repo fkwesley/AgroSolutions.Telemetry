@@ -4,46 +4,66 @@ using Application.Services;
 using Application.Settings;
 using Domain.Events;
 using Domain.Repositories;
+using Domain.Services;
 using Elastic.Apm.NetCoreAll;
-using FCG.Application.Services;
-using Infrastructure.Context;
 using Infrastructure.Factories;
-using Infrastructure.Http.Clients;
-using Infrastructure.Interfaces;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
+using Infrastructure.Services.Elastic;
 using Infrastructure.Services.HealthCheck;
 using Infrastructure.Services.Logging;
-using Microsoft.EntityFrameworkCore;
 
 namespace API.Configurations;
 
 // #SOLID - Dependency Inversion Principle (DIP)
-// Esta classe de configuraÁ„o registra as abstraÁıes (interfaces) com suas implementaÁıes concretas.
-// O cÛdigo cliente sempre depende de interfaces, nunca de implementaÁıes.
+// Esta classe de configura√ß√£o registra as abstra√ß√µes (interfaces) com suas implementa√ß√µes concretas.
+// O c√≥digo cliente sempre depende de interfaces, nunca de implementa√ß√µes.
 
 // #SOLID - Single Responsibility Principle (SRP)
-// Esta classe tem uma ˙nica responsabilidade: configurar a injeÁ„o de dependÍncias.
+// Esta classe tem uma √∫nica responsabilidade: configurar a inje√ß√£o de depend√™ncias.
 
 // #SOLID - Open/Closed Principle (OCP)
-// Para adicionar novos serviÁos, basta registr·-los aqui sem modificar o cÛdigo existente.
-// Por exemplo: adicionar novo logger ou message publisher n„o requer mudanÁas em outras classes.
+// Para adicionar novos servi√ßos, basta registr√°-los aqui sem modificar o c√≥digo existente.
+// Por exemplo: adicionar novo logger ou message publisher n√£o requer mudan√ßas em outras classes.
 
 public static class DependencyInjectionConfiguration
 {
     public static WebApplicationBuilder AddDependencyInjection(this WebApplicationBuilder builder)
     {
-        var connectionString = builder.Configuration.GetConnectionString("FCGOrdersDbConnection")
-            ?? throw new ArgumentNullException("Connection string 'FCGOrdersDbConnection' not found.");
-
         // Settings
         builder.Services.Configure<LoggerSettings>(builder.Configuration.GetSection("LoggerSettings"));
         builder.Services.Configure<NewRelicLoggerSettings>(builder.Configuration.GetSection("NewRelic"));
         builder.Services.Configure<ElasticLoggerSettings>(builder.Configuration.GetSection("ElasticLogs"));
 
+        // Analysis Settings - usando defaults do c√≥digo (AlertSettings.cs)
+        // N√£o h√° binding com appsettings.json - valores fixos no c√≥digo
+        builder.Services.AddSingleton(new AnalysisSettings());
+        builder.Services.AddSingleton(new ExcessiveRainfallSettings());
+        builder.Services.AddSingleton(new ExtremeHeatSettings());
+        builder.Services.AddSingleton(new FreezingTemperatureSettings());
+        builder.Services.AddSingleton(new DroughtAlertSettings());
+        builder.Services.AddSingleton(new IrrigationSettings());
+        builder.Services.AddSingleton(new HeatStressSettings());
+        builder.Services.AddSingleton(new PestRiskSettings());
+
+        // Elastic Services (Generic)
+        builder.Services.AddSingleton<IElasticService, ElasticService>();
+
+        // Correlation Context - AsyncLocal implementation for distributed tracing
+        // #SOLID - Dependency Inversion Principle (DIP)
+        // Application depends on ICorrelationContext (abstraction)
+        // Infrastructure provides CorrelationContext (implementation)
+        builder.Services.AddSingleton<ICorrelationContext, Infrastructure.Context.CorrelationContext>();
+
         // Domain Services
-        builder.Services.AddScoped<IOrderService, OrderService>();
-        builder.Services.AddScoped<IGameService, GameService>();
+        // #DDD - Domain Services encapsulam l√≥gica de neg√≥cio complexa que n√£o cabe em uma √∫nica entidade
+        builder.Services.AddScoped<IDroughtDetectionService, DroughtDetectionService>();
+        builder.Services.AddScoped<IIrrigationRecommendationService, IrrigationRecommendationService>();
+        builder.Services.AddScoped<IHeatStressAnalysisService, HeatStressAnalysisService>();
+        builder.Services.AddScoped<IPestRiskAnalysisService, PestRiskAnalysisService>();
+
+        // Application Services
+        builder.Services.AddScoped<IFieldMeasurementService, FieldMeasurementService>();
         
         // Health Check Services
         // #SOLID - Open/Closed Principle (OCP)
@@ -52,17 +72,28 @@ public static class DependencyInjectionConfiguration
         // 2. Registrar aqui: builder.Services.AddScoped<IHealthCheck, MeuNovoHealthCheck>()
         // 3. HealthCheckService descobre automaticamente via IEnumerable<IHealthCheck>
         builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-        builder.Services.AddScoped<IHealthCheck, DatabaseHealthCheck>();
-        builder.Services.AddScoped<IHealthCheck, GamesApiHealthCheck>();
-        builder.Services.AddScoped<IHealthCheck, RabbitMQHealthCheck>();
+        builder.Services.AddScoped<IHealthCheck, CosmosDBHealthCheck>();
+        builder.Services.AddScoped<IHealthCheck, ServiceBusHealthCheck>();
         builder.Services.AddScoped<IHealthCheck, ElasticsearchHealthCheck>();
         builder.Services.AddScoped<IHealthCheck, SystemHealthCheck>();
 
         // Domain Event Dispatcher & Handlers
         builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
-        builder.Services.AddScoped<IDomainEventHandler<OrderCreatedEvent>, OrderCreatedEventHandler>();
-        builder.Services.AddScoped<IDomainEventHandler<PaymentMethodSetEvent>, PaymentMethodSetEventHandler>();
-        builder.Services.AddScoped<IDomainEventHandler<OrderStatusChangedEvent>, OrderStatusChangedEventHandler>();
+
+        // Event Handlers - Elasticsearch sync
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ElasticMeasurementEventHandler>();
+
+        // Event Handlers - Immediate Analysis (no history required)
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ExcessiveRainfallAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, ExtremeHeatAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, FreezingTemperatureAnalysisEventHandler>();
+
+        // Event Handlers - Historical Analysis (fetches history + analyzes)
+        // Para adicionar nova an√°lise: criar handler + registrar aqui!
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, DroughtAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, IrrigationAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, HeatStressAnalysisEventHandler>();
+        builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, PestRiskAnalysisEventHandler>();
 
         // Logger Services
         ConfigureLoggerService(builder);
@@ -75,23 +106,7 @@ public static class DependencyInjectionConfiguration
         builder.Services.AddSingleton<IMessagePublisherFactory, MessagePublisherFactory>();
 
         // Repositories
-        builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
-        // HTTP Clients
-        builder.Services.AddScoped<IGamesApiClient, GamesApiClient>();
-
-        // Database Context
-        builder.Services.AddDbContext<OrdersDbContext>(options =>
-        {
-            options.UseSqlServer(connectionString, sqlOptions =>
-            {
-                sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null
-                );
-            });
-        }, ServiceLifetime.Scoped);
+        builder.Services.AddScoped<IFieldMeasurementRepository, FieldMeasurementRepository>();
 
         // Other Services
         builder.Services.AddHttpClient();
@@ -109,15 +124,20 @@ public static class DependencyInjectionConfiguration
     private static void ConfigureLoggerService(WebApplicationBuilder builder)
     {
         // #SOLID - Liskov Substitution Principle (LSP)
-        // DatabaseLoggerService, ElasticLoggerService e NewRelicLoggerService podem ser substituÌdos
-        // entre si sem quebrar o cÛdigo, pois todos implementam ILoggerService com o mesmo contrato.
-        
+        // DatabaseLoggerService, ElasticLoggerService e NewRelicLoggerService podem ser substitu√≠dos
+        // entre si sem quebrar o c√≥digo, pois todos implementam ILoggerService com o mesmo contrato.
+
         // #SOLID - Open/Closed Principle (OCP)
         // Para adicionar novo provider (ex: Azure Monitor), basta:
         // 1. Criar classe implementando ILoggerService
         // 2. Adicionar case no switch
-        // Nenhum cÛdigo cliente precisa ser alterado.
-        var loggerProvider = builder.Configuration.GetValue<string>("LoggerSettings:Provider") ?? "Database";
+        // Nenhum c√≥digo cliente precisa ser alterado.
+
+        // NOTA: A aplica√ß√£o usa Serilog para logging estruturado.
+        // - "Elastic": Envia logs estruturados para Elasticsearch
+        // - "NewRelic": Envia logs para NewRelic APM
+        // - "Database": Delega para Serilog (que j√° envia para Elastic via configura√ß√£o)
+        var loggerProvider = builder.Configuration.GetValue<string>("LoggerSettings:Provider") ?? "Elastic";
 
         switch (loggerProvider)
         {
@@ -125,14 +145,14 @@ public static class DependencyInjectionConfiguration
                 builder.Services.AddScoped<ILoggerService, NewRelicLoggerService>();
                 break;
 
-            case "Elastic":
-                builder.Services.AddScoped<ILoggerService, ElasticLoggerService>();
+            case "Database":
+                // Mantido para compatibilidade - delega para Serilog/Elastic
+                builder.Services.AddScoped<ILoggerService, DatabaseLoggerService>();
                 break;
 
-            case "Database":
+            case "Elastic":
             default:
-                builder.Services.AddScoped<ILoggerService, DatabaseLoggerService>();
-                builder.Services.AddScoped<IDatabaseLoggerRepository, DatabaseLoggerRepository>();
+                builder.Services.AddScoped<ILoggerService, ElasticLoggerService>();
                 break;
         }
     }

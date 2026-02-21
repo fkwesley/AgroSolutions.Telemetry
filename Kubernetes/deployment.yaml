@@ -1,23 +1,23 @@
 apiVersion: apps/v1                                                         # Versão da API do Kubernetes usada para criar Deployments
 kind: Deployment                                                            # Tipo do objeto: Deployment cria réplicas e faz rollout
 metadata:
-  name: fcg-orders                                                          # Nome do Deployment
+  name: agro-telemetry                                                          # Nome do Deployment
 
 spec:
   replicas: 1                                                               # Quantas réplicas (pods) deseja rodar
   selector:                                                                 # Selector: identifica quais pods pertencem a este Deployment
     matchLabels:
-      app: fcg-orders
+      app: agro-telemetry
 
   template:                                                                 # Template: modelo usado para criar cada Pod
     metadata:
       labels:                                                               # Labels aplicadas nos Pods criados
-        app: fcg-orders
+        app: agro-telemetry
 
     spec:
       containers:                                                           # Lista de containers dentro do Pod
-        - name: fcg-orders-container                                        # Nome do container
-          image: acrfcg.azurecr.io/fiapcloudgames/orders/api:${IMAGE_TAG}   # Imagem do container no ACR
+        - name: agro-telemetry-container                                        # Nome do container
+          image: acragro.azurecr.io/agrosolutions/telemetry/api:${IMAGE_TAG}    # Imagem do container no ACR
           ports:                                                            # Porta exposta internamente no container
             - containerPort: 8080
           resources:
@@ -48,6 +48,6 @@ spec:
           # ==========================
           envFrom:
             - configMapRef:
-                name: fcg-orders-config
+                name: agro-telemetry-config
             - secretRef:
-                name: fcg-orders-secret
+                name: agro-telemetry-secret

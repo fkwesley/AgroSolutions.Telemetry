@@ -23,7 +23,7 @@ namespace Infrastructure.Services
 
         public ServiceBusPublisher(IConfiguration configuration, ILogger<ServiceBusPublisher>? logger = null)
         {
-            _connectionString = configuration.GetConnectionString("FCGServiceBusConnection");
+            _connectionString = configuration.GetConnectionString("ServiceBusConnection");
             _logger = logger;
         }
 
@@ -87,9 +87,14 @@ namespace Infrastructure.Services
                     ContentType = "application/json"
                 };
 
-                // Adding custom properties if provided
-                if (customProperties != null)
+                // Apply custom properties if provided
+                if (customProperties != null && customProperties.Any())
                 {
+                    // Set CorrelationId as native Service Bus property (if provided)
+                    if (customProperties.TryGetValue("CorrelationId", out var correlationId))
+                        serviceBusMessage.CorrelationId = correlationId?.ToString();
+
+                    // Add other custom properties to ApplicationProperties
                     foreach (var kv in customProperties)
                         serviceBusMessage.ApplicationProperties[kv.Key] = kv.Value;
                 }

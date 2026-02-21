@@ -17,7 +17,7 @@ public static class SwaggerConfiguration
                 Scheme = "Bearer",
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
-                Description = "Insira o token JWT no formato: Bearer {seu_token}"
+                Description = "Enter JWT token in the format: Bearer {your_token}"
             });
 
             c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -60,7 +60,7 @@ public static class SwaggerConfiguration
             {
                 options.SwaggerEndpoint(
                     $"/swagger/{description.GroupName}/swagger.json",
-                    $"FCG.Orders.API {description.GroupName.ToUpperInvariant()}"
+                    $"AgroSolutions.Telemetry.API {description.GroupName.ToUpperInvariant()}"
                 );
             }
 

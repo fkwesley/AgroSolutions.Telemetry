@@ -9,6 +9,10 @@ using System.Text.Json.Serialization;
 
 namespace Infrastructure.Services.Logging
 {
+    /// <summary>
+    /// Serviço de logging para NewRelic.
+    /// Envia logs para a plataforma de observabilidade NewRelic.
+    /// </summary>
     public class NewRelicLoggerService : ILoggerService
     {
         private readonly IHttpClientFactory _httpClientFactory;
@@ -23,6 +27,8 @@ namespace Infrastructure.Services.Logging
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+
+            _logger.LogInformation("NewRelicLoggerService initialized with endpoint: {Endpoint}", _settings.Endpoint);
         }
 
         public async Task LogRequestAsync(RequestLog logEntry)
@@ -75,29 +81,21 @@ namespace Infrastructure.Services.Logging
                 return;
             }
 
-            var level = "INFO";
-            var message = "No message provided";
-
-            switch (logObject)
-            {
-                case RequestLog requestLog:
-                    level = requestLog.StatusCode >= 500 ? "ERROR"
-                          : requestLog.StatusCode >= 400 ? "WARNING"
-                          : "INFO";
-                    message = $"{requestLog.HttpMethod} {requestLog.Path} - {requestLog.StatusCode}";
-                    break;
-            }
-
             var payload = new[]
             {
                 new
                 {
-                    message,
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    attributes = new
+                    logs = new object[]
                     {
-                        level,
-                        log = logObject
+                        logObject switch
+                        {
+                            RequestLog requestLog => new
+                            {
+                                message = $"{requestLog.HttpMethod} {requestLog.Path} - {requestLog.StatusCode}",
+                                attributes = (object)requestLog
+                            },
+                            _ => new { message = "Unknown log type", attributes = logObject }
+                        }
                     }
                 }
             };
@@ -116,7 +114,13 @@ namespace Infrastructure.Services.Logging
             client.DefaultRequestHeaders.Add("X-License-Key", _settings.LicenseKey);
 
             var response = await client.PostAsync(_settings.Endpoint, content);
-            response.EnsureSuccessStatusCode();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to send log to NewRelic. Status: {Status}, Error: {Error}",
+                    response.StatusCode, error);
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
-﻿using API.Models;
+using API.Models;
 using Application.Interfaces;
 using Domain.Entities;
-using Infrastructure.Context;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Text.Json;
@@ -14,18 +13,21 @@ namespace API.Middlewares
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<RequestLoggingMiddleware> _logger;
         private readonly IConfiguration _configuration;
+        private readonly ICorrelationContext _correlationContext;
         private const int MaxBodySize = 1024 * 1024; // 1MB - Limite para evitar consumo excessivo de memória
 
         public RequestLoggingMiddleware(
             RequestDelegate next,
             IServiceScopeFactory scopeFactory,
             ILogger<RequestLoggingMiddleware> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ICorrelationContext correlationContext)
         {
             _next = next;
             _scopeFactory = scopeFactory;
             _logger = logger;
             _configuration = configuration;
+            _correlationContext = correlationContext;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -59,10 +61,10 @@ namespace API.Middlewares
             // Popula contexto de correlação (AsyncLocal)
             // Isso permite que TODOS os logs técnicos (ILogger<T>) tenham LogId e CorrelationId
             // mesmo em chamadas assíncronas, Service Bus, repositories, etc.
-            CorrelationContext.LogId = logId;
-            CorrelationContext.CorrelationId = correlationId;
-            CorrelationContext.ServiceName = serviceName;
-            CorrelationContext.UserId = context.User?.FindFirst("user_id")?.Value;
+            _correlationContext.LogId = logId;
+            _correlationContext.CorrelationId = correlationId;
+            _correlationContext.ServiceName = serviceName;
+            _correlationContext.UserId = context.User?.FindFirst("user_id")?.Value;
 
             // Adiciona os IDs ao Serilog LogContext
             // Todos os logs do Serilog dentro deste scope terão estes valores automaticamente

@@ -1,156 +1,143 @@
 using Application.DTO.Common;
-using Application.DTO.Order;
-using Domain.Enums;
+using Application.DTO.FieldMeasurement;
+using Application.DTO.Health;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Helpers
 {
     /// <summary>
-    /// Helper para gerar links HATEOAS consistentes.
+    /// Helper para gerar links HATEOAS consistentes para a API de Telemetria.
     /// 
-    /// ?? OBJETIVO:
-    /// Centralizar a lÛgica de criaÁ„o de links HATEOAS,
-    /// garantindo URLs corretas e consistentes.
+    /// üéØ OBJETIVO:
+    /// Centralizar a l√≥gica de cria√ß√£o de links HATEOAS,
+    /// garantindo URLs corretas e navegabilidade da API (Level 3 Richardson Maturity Model).
     /// 
-    /// ?? USO:
-    /// var links = HateoasHelper.CreateOrderLinks(urlHelper, orderId, version);
-    /// orderResponse.Links = links;
+    /// üìò USO:
+    /// var links = HateoasHelper.CreateFieldMeasurementLinks(urlHelper, measurementId, version);
+    /// response.Links = links;
     /// </summary>
     public static class HateoasHelper
     {
         /// <summary>
-        /// Cria links HATEOAS para um pedido especÌfico.
+        /// Cria links HATEOAS para uma medi√ß√£o espec√≠fica.
         /// </summary>
         /// <param name="urlHelper">Helper para gerar URLs</param>
-        /// <param name="orderId">ID do pedido</param>
-        /// <param name="version">Vers„o da API (ex: "2.0")</param>
-        /// <param name="status">Status atual do pedido (para links condicionais)</param>
+        /// <param name="measurementId">ID da medi√ß√£o</param>
+        /// <param name="version">Vers√£o da API (ex: "1.0")</param>
         /// <returns>Lista de links HATEOAS</returns>
-        public static List<Link> CreateOrderLinks(IUrlHelper urlHelper, int orderId, string version, OrderStatus? status = null)
+        public static List<Link> CreateFieldMeasurementLinks(IUrlHelper urlHelper, Guid measurementId, string version)
         {
-            var links = new List<Link>
+            return new List<Link>
             {
-                // Self - Link para o prÛprio recurso
+                // Self - Link para o pr√≥prio recurso
                 new Link(
-                    href: urlHelper.Link("GetOrderById", new { id = orderId, version }) ?? string.Empty,
+                    href: urlHelper.Link("GetFieldMeasurementById", new { id = measurementId, version }) ?? string.Empty,
                     rel: "self",
                     method: "GET"
                 ),
                 
-                // Update - Link para atualizar o status (apenas se n„o estiver finalizado)
+                // Collection - Link para a cole√ß√£o completa
                 new Link(
-                    href: urlHelper.Link("UpdateOrderStatus", new { id = orderId, version }) ?? string.Empty,
-                    rel: "update",
-                    method: "PATCH"
-                ),
-                
-                // Delete - Link para deletar (apenas se n„o estiver pago/liberado)
-                new Link(
-                    href: urlHelper.Link("DeleteOrder", new { id = orderId, version }) ?? string.Empty,
-                    rel: "delete",
-                    method: "DELETE"
-                ),
-                
-                // All - Link para lista de todos os pedidos
-                new Link(
-                    href: urlHelper.Link("GetOrders", new { version }) ?? string.Empty,
-                    rel: "all",
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { version }) ?? string.Empty,
+                    rel: "collection",
                     method: "GET"
                 )
             };
-
-            // Links condicionais baseados no status
-            if (status == OrderStatus.PendingPayment)
-            {
-                links.Add(new Link(
-                    href: urlHelper.Link("UpdateOrderStatus", new { id = orderId, version }) ?? string.Empty,
-                    rel: "pay",
-                    method: "PATCH"
-                ));
-            }
-
-            if (status == OrderStatus.Paid)
-            {
-                links.Add(new Link(
-                    href: urlHelper.Link("UpdateOrderStatus", new { id = orderId, version }) ?? string.Empty,
-                    rel: "release",
-                    method: "PATCH"
-                ));
-            }
-
-            return links;
         }
 
         /// <summary>
-        /// Cria links HATEOAS para paginaÁ„o.
+        /// Cria links HATEOAS para uma cole√ß√£o de medi√ß√µes de um campo.
         /// </summary>
-        public static List<Link> CreatePaginationLinks<T>(
+        /// <param name="urlHelper">Helper para gerar URLs</param>
+        /// <param name="fieldId">ID do campo</param>
+        /// <param name="version">Vers√£o da API</param>
+        /// <returns>Lista de links HATEOAS</returns>
+        public static List<Link> CreateFieldMeasurementCollectionLinks(
+            IUrlHelper urlHelper, 
+            Guid fieldId, 
+            string version)
+        {
+            return new List<Link>
+            {
+                // Self - Link para medi√ß√µes deste campo
+                new Link(
+                    href: urlHelper.Link("GetMeasurementsByFieldId", new { fieldId, version }) ?? string.Empty,
+                    rel: "self",
+                    method: "GET"
+                ),
+                
+                // Create - Link para criar nova medi√ß√£o
+                new Link(
+                    href: urlHelper.Link("CreateFieldMeasurement", new { version }) ?? string.Empty,
+                    rel: "create",
+                    method: "POST"
+                )
+            };
+        }
+
+        /// <summary>
+        /// Cria links de pagina√ß√£o HATEOAS.
+        /// </summary>
+        /// <param name="urlHelper">Helper para gerar URLs</param>
+        /// <param name="currentPage">P√°gina atual</param>
+        /// <param name="pageSize">Tamanho da p√°gina</param>
+        /// <param name="totalPages">Total de p√°ginas</param>
+        /// <param name="version">Vers√£o da API</param>
+        /// <returns>Lista de links de pagina√ß√£o</returns>
+        public static List<Link> CreatePaginationLinks(
             IUrlHelper urlHelper,
-            PagedResponse<T> pagedResponse,
-            string routeName,
+            int currentPage,
+            int pageSize,
+            int totalPages,
             string version)
         {
             var links = new List<Link>
             {
-                // Self - P·gina atual
+                // Self
                 new Link(
-                    href: urlHelper.Link(routeName, new { 
-                        version, 
-                        page = pagedResponse.CurrentPage, 
-                        pageSize = pagedResponse.PageSize 
-                    }) ?? string.Empty,
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { page = currentPage, pageSize, version }) ?? string.Empty,
                     rel: "self",
-                    method: "GET"
-                ),
-                
-                // First - Primeira p·gina
-                new Link(
-                    href: urlHelper.Link(routeName, new { 
-                        version, 
-                        page = 1, 
-                        pageSize = pagedResponse.PageSize 
-                    }) ?? string.Empty,
-                    rel: "first",
-                    method: "GET"
-                ),
-                
-                // Last - ⁄ltima p·gina
-                new Link(
-                    href: urlHelper.Link(routeName, new { 
-                        version, 
-                        page = pagedResponse.TotalPages, 
-                        pageSize = pagedResponse.PageSize 
-                    }) ?? string.Empty,
-                    rel: "last",
                     method: "GET"
                 )
             };
 
-            // Previous - P·gina anterior (se existir)
-            if (pagedResponse.HasPrevious)
+            // First
+            if (currentPage > 1)
             {
                 links.Add(new Link(
-                    href: urlHelper.Link(routeName, new { 
-                        version, 
-                        page = pagedResponse.CurrentPage - 1, 
-                        pageSize = pagedResponse.PageSize 
-                    }) ?? string.Empty,
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { page = 1, pageSize, version }) ?? string.Empty,
+                    rel: "first",
+                    method: "GET"
+                ));
+            }
+
+            // Previous
+            if (currentPage > 1)
+            {
+                links.Add(new Link(
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { page = currentPage - 1, pageSize, version }) ?? string.Empty,
                     rel: "previous",
                     method: "GET"
                 ));
             }
 
-            // Next - PrÛxima p·gina (se existir)
-            if (pagedResponse.HasNext)
+            // Next
+            if (currentPage < totalPages)
             {
                 links.Add(new Link(
-                    href: urlHelper.Link(routeName, new { 
-                        version, 
-                        page = pagedResponse.CurrentPage + 1, 
-                        pageSize = pagedResponse.PageSize 
-                    }) ?? string.Empty,
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { page = currentPage + 1, pageSize, version }) ?? string.Empty,
                     rel: "next",
+                    method: "GET"
+                ));
+            }
+
+            // Last
+            if (currentPage < totalPages)
+            {
+                links.Add(new Link(
+                    href: urlHelper.Link("GetFieldMeasurementsPaginated", new { page = totalPages, pageSize, version }) ?? string.Empty,
+                    rel: "last",
                     method: "GET"
                 ));
             }
@@ -159,61 +146,56 @@ namespace API.Helpers
         }
 
         /// <summary>
-        /// Adiciona links HATEOAS a um pedido.
+        /// Adiciona links HATEOAS a uma √∫nica medi√ß√£o.
         /// </summary>
-        public static void AddLinksToOrder(OrderResponse order, IUrlHelper urlHelper, string version)
+        public static void AddLinksToMeasurement(
+            FieldMeasurementResponse measurement, 
+            IUrlHelper urlHelper, 
+            string version)
         {
-            order.Links = CreateOrderLinks(urlHelper, order.OrderId, version, order.Status);
+            measurement.Links = CreateFieldMeasurementLinks(urlHelper, measurement.Id, version);
         }
 
         /// <summary>
-        /// Adiciona links HATEOAS a uma coleÁ„o de pedidos.
+        /// Adiciona links HATEOAS a uma cole√ß√£o de medi√ß√µes.
         /// </summary>
-        public static void AddLinksToOrders(IEnumerable<OrderResponse> orders, IUrlHelper urlHelper, string version)
+        public static void AddLinksToMeasurements(
+            IEnumerable<FieldMeasurementResponse> measurements, 
+            IUrlHelper urlHelper, 
+            string version)
         {
-            foreach (var order in orders)
+            foreach (var measurement in measurements)
             {
-                AddLinksToOrder(order, urlHelper, version);
+                AddLinksToMeasurement(measurement, urlHelper, version);
             }
         }
 
         /// <summary>
-        /// Gera links HATEOAS para Health Check endpoints.
+        /// Gera links HATEOAS para o Health Check.
         /// </summary>
-        /// <param name="httpContext">HTTP Context para gerar URLs</param>
-        /// <param name="version">Vers„o da API</param>
-        /// <returns>Lista de links HATEOAS para health endpoints</returns>
         public static List<Link> GenerateHealthLinks(HttpContext httpContext, string version)
         {
-            var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+            var request = httpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
 
-            var links = new List<Link>
+            return new List<Link>
             {
-                // Self - Health check completo
                 new Link(
                     href: $"{baseUrl}/v{version}/health",
                     rel: "self",
                     method: "GET"
                 ),
-                
-                // Orders - Link para endpoints principais
                 new Link(
-                    href: $"{baseUrl}/api/v{version}/orders",
-                    rel: "orders",
+                    href: $"{baseUrl}/v{version}/field-measurements",
+                    rel: "measurements",
                     method: "GET"
                 ),
-
-                // Swagger Documentation
                 new Link(
-                    href: $"{baseUrl}/swagger/index.html",
-                    rel: "documentation",
+                    href: $"{baseUrl}/swagger",
+                    rel: "api-docs",
                     method: "GET"
                 )
             };
-
-            return links;
         }
     }
 }
-
-
