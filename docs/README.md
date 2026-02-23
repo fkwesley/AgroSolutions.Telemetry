@@ -1,26 +1,123 @@
-﻿# AgroSolutions.Telemetry API
+﻿# 🌾 AgroSolutions.Telemetry API - Hackaton FIAP
 
-API para recebimento e processamento de dados de telemetria de sensores térmicos de campo agrícola.
+> API RESTful para recebimento e processamento de dados de telemetria de sensores de campo agrícola, com análises inteligentes e alertas automatizados.
 
-## 🌾 Funcionalidades
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![C# 12](https://img.shields.io/badge/C%23-12.0-239120?logo=csharp)](https://docs.microsoft.com/en-us/dotnet/csharp/)
+[![REST Level 3](https://img.shields.io/badge/REST-Level%203%20(HATEOAS)-success)](https://martinfowler.com/articles/richardsonMaturityModel.html)
 
-- **Recepção de Telemetria**: Recebe dados de sensores (umidade do solo, temperatura do ar, precipitação)
-- **Armazenamento CosmosDB**: Persiste dados em banco NoSQL otimizado para IoT
-- **Alertas Inteligentes**: Detecta condições de seca prolongada (umidade < 30% por 24h+)
-- **Integração Service Bus**: Envia alertas para fila do Azure Service Bus
+---
+
+## 📋 Índice
+
+- [Visão Geral](#-visão-geral)
+- [Arquitetura](#-arquitetura)
+- [Funcionalidades](#-funcionalidades)
+- [API RESTful - Nível 3](#-api-restful---nível-3)
+- [Estrutura do Projeto](#-estrutura-do-projeto)
+- [Princípios SOLID](#-princípios-solid)
+- [Tecnologias](#-tecnologias)
+- [CI/CD](#-cicd)
+- [Setup Rápido](#-setup-rápido)
+- [Testes](#-testes)
+
+---
+
+## 🎯 Visão Geral
+
+Microserviço responsável pela ingestão de dados de sensores agrícolas (umidade do solo, temperatura do ar, precipitação), persistência em Azure CosmosDB e processamento de análises inteligentes com publicação de alertas via mensageria.
+
+### 🌟 Destaques
+
+- ✅ **Clean Architecture** (Onion Architecture)
+- ✅ **REST Level 3** (HATEOAS completo)
+- ✅ **SOLID Principles** aplicados rigorosamente
+- ✅ **Domain-Driven Design** (DDD)
+- ✅ **Domain Events** com múltiplos Event Handlers de análise
+- ✅ **Domain Services** para regras de negócio complexas
+- ✅ **Azure CosmosDB** (Serverless) para persistência NoSQL otimizada para IoT
+- ✅ **Mensageria** via Service Bus e RabbitMQ (Factory Pattern)
+- ✅ **Health Checks** dinâmicos com auto-discovery
+- ✅ **Observabilidade completa** (Logs estruturados, Correlation IDs, Elastic APM)
+- ✅ **Testes em 4 camadas** (Unit, Integration, Architecture, Load)
+
+---
+
+### 📌 Requisitos Hackaton FIAP
+  - **Arquitetura baseada em microserviços**
+    - Microserviço para gestão de úsuários e autenticação JWT (banco SQL)
+    - Microserviço para gestão de fazendas, talhões e safras (banco SQL)
+    - Microserviço para injestão dos dados dos sensores (banco NoSQL - Requisito Opcional)
+    - Funções Serverless para coleta de dados dos sensores (integração api de previsão do tempo - Requisito Opcional) 
+  - **Orquestração com Kubernetes**
+    - Imagens Docker otimizadas para .NET 8 (Alpine) 
+    - Armazenamento das imagens no Azure Container Registry (ACR)
+    - Microserviços hospedados em Azure Kubernetes Services (AKS)   
+    - Manifestos Kubernetes para deploy, service, hpa, configMap e secrets
+  - **Observabilidade**
+    - Elastic APM para monitoramento de performance e rastreamento distribuído
+    - Elasticsearch para armazenamento e análise de logs estruturados
+    - Kibana para dashboards
+  - **Mensageria**
+    - ServiceBus para comunicação assíncrona entre microserviços
+    - Azure Functions (Queue trigger) para processamento de mensagens em tempo real (componente Serverless - Requisito Opcional)
+    - Azure Functions (Timer trigger) para coleta de dados dos sensores a cada hora (componente Serverless - Requisito Opcional)
+  - **CI/CD Automatizado**
+    - Github Actions para build, testes, build de imagem Docker e deploy no AKS
+    - Stages de DEV, STAGING e PROD com aprovações manuais para deploy em produção
+  - **Adoção das melhores práticas de arquitetura e dev**
+    - Clean Architecture (Onion Architecture)
+    - API RESTful Level 3 (HATEOAS completo)
+    - SOLID Principles aplicados rigorosamente
+    - Patterns como Repository, Unit of Work, Factory, Strategy, 
+    - Domain-Driven Design (DDD)
+    - Health Checks dinâmicos
+    - Observabilidade completa (Logs estruturados, Correlation IDs)
+    - Testes em 4 camadas (Unit, Integration, Architecture, Load)
+
+---
 
 ## 🏗️ Arquitetura
 
-### Camadas
+### Clean Architecture (Onion)
 
 ```
-API (Controllers)
-  ↓
-Application (Services, DTOs, Event Handlers)
-  ↓
-Domain (Entities, Events, Repository Interfaces)
-  ↓
-Infrastructure (CosmosDB Repository, Service Bus Publisher)
+┌─────────────────────────────────────────────┐
+│              API (Presentation)             │  ← Controllers, Middlewares
+├─────────────────────────────────────────────┤
+│           Application (Use Cases)           │  ← Services, DTOs, Event Handlers
+├─────────────────────────────────────────────┤
+│              Domain (Core)                  │  ← Entities, Events, Domain Services
+├─────────────────────────────────────────────┤
+│          Infrastructure (External)          │  ← CosmosDB, Service Bus, Elastic
+└─────────────────────────────────────────────┘
+```
+
+**Dependency Rule:** Domain ← Application ← Infrastructure ← API
+
+
+### Fluxo de Processamento
+
+```
+         Sensor → API (POST /v1/field-measurements)
+           ↓
+         FieldMeasurementService (orquestração)
+           ↓
+         CosmosDB (persistência)
+           ↓
+         MeasurementCreatedEvent (Domain Event)
+           ↓
+         Event Handlers (análises paralelas):
+           ├── DroughtAnalysisEventHandler
+           ├── IrrigationAnalysisEventHandler
+           ├── HeatStressAnalysisEventHandler
+           ├── PestRiskAnalysisEventHandler
+           ├── ExcessiveRainfallAnalysisEventHandler
+           ├── ExtremeHeatAnalysisEventHandler
+           ├── FreezingTemperatureAnalysisEventHandler
+           └── ElasticMeasurementEventHandler (sync Elasticsearch)
+           ↓
+         Service Bus / RabbitMQ (alertas e notificações)
 ```
 
 ### Padrões Utilizados
@@ -28,356 +125,335 @@ Infrastructure (CosmosDB Repository, Service Bus Publisher)
 - **Clean Architecture**: Separação clara de responsabilidades
 - **SOLID Principles**: Código manutenível e testável
 - **Domain Events**: Processamento assíncrono de regras de negócio
-- **Repository Pattern**: Abstração de acesso a dados
-
-## 📊 Modelo de Dados
-
-### FieldMeasurement (Entidade de Domínio)
-
-```csharp
-{
-  "id": "guid",
-  "fieldId": "guid",           // Identificador do campo
-  "soilMoisture": 0-100,       // Umidade do solo em %
-  "airTemperature": -50-80,    // Temperatura do ar em °C
-  "precipitation": 0+,         // Precipitação em mm
-  "collectedAt": "datetime",   // Data/hora da coleta pelo sensor
-  "receivedAt": "datetime",    // Data/hora do recebimento pela API
-  "userId": "string"           // Identificador do usuário que criou a medição (do token JWT)
-}
-```
-
-## ☁️ CosmosDB - Conexão e Melhores Práticas
-
-### Por que CosmosDB?
-
-1. **NoSQL distribuído**: Ideal para dados de telemetria (alta volumetria)
-2. **Baixa latência**: Leituras/escritas rápidas globalmente
-3. **Escalabilidade automática**: Cresce conforme demanda
-4. **Suporte a APIs múltiplas**: SQL, MongoDB, Cassandra, Gremlin
-
-### Configuração da Conexão
-
-#### 1. Connection String
-
-No `appsettings.json`:
-
-```json
-{
-  "ConnectionStrings": {
-    "CosmosDbConnection": "AccountEndpoint=https://seu-account.documents.azure.com:443/;AccountKey=sua-chave;"
-  },
-  "CosmosDb": {
-    "DatabaseId": "AgroSolutionsDb"
-  }
-}
-```
-
-#### 2. Estrutura no CosmosDB
-
-- **Database**: `AgroSolutionsDb`
-- **Container**: `field-measurements`
-- **Partition Key**: `/fieldId` (distribui dados por campo)
-- **Throughput**: 400 RU/s (pode ser ajustado)
-
-### Melhores Práticas Implementadas
-
-#### ✅ 1. Partition Key Estratégica
-
-```csharp
-partitionKeyPath: "/fieldId"
-```
-
-**Por quê?** 
-- Queries por campo específico são ultra-rápidas
-- Distribuição uniforme de dados
-- Cada campo agrícola = uma partição lógica
-
-#### ✅ 2. Lazy Initialization
-
-```csharp
-private async Task EnsureContainerAsync()
-{
-    if (_container != null) return;
-    // Inicializa apenas quando necessário
-}
-```
+- **Domain Services**: Lógica de negócio complexa (DroughtDetection, HeatStressAnalysis, IrrigationRecommendation, PestRiskAnalysis)
+- **Repository Pattern**: Abstração de acesso a dados (CosmosDB)
+- **Factory Pattern**: Seleção dinâmica de publisher de mensageria (ServiceBus/RabbitMQ)
 
 **Benefícios:**
-- API não falha no startup se CosmosDB estiver offline
-- Conexão criada sob demanda
-- Thread-safe com SemaphoreSlim
+- ✅ Domain independente de infraestrutura
+- ✅ Fácil substituição de frameworks/bancos
+- ✅ Testável sem dependências externas
+- ✅ Escalável e manutenível
 
-#### ✅ 3. Queries Otimizadas
+---
 
-**Com Partition Key (eficiente):**
-```csharp
-var iterator = _container.GetItemQueryIterator<FieldMeasurement>(
-    query,
-    requestOptions: new QueryRequestOptions
-    {
-        PartitionKey = new PartitionKey(fieldId.ToString())
-    });
+## 🌾 Funcionalidades
+
+- **Recepção de Telemetria**: Recebe dados de sensores (umidade do solo, temperatura do ar, precipitação)
+- **Armazenamento CosmosDB**: Persiste dados em banco NoSQL Serverless otimizado para IoT (partition key: `/fieldId`)
+- **Análise de Seca**: Detecta condições de seca prolongada (umidade abaixo do threshold por período contínuo)
+- **Recomendação de Irrigação**: Calcula urgência e quantidade de água necessária com base nas condições do solo
+- **Análise de Estresse Térmico**: Detecta condições de calor que afetam as culturas
+- **Avaliação de Risco de Pragas**: Identifica condições favoráveis à proliferação de pragas
+- **Detecção de Chuva Excessiva**: Monitora precipitação acima dos limites definidos
+- **Detecção de Calor Extremo**: Alerta sobre temperaturas extremas
+- **Detecção de Congelamento**: Alerta sobre temperaturas de congelamento
+- **Sync Elasticsearch**: Indexação automática de medições para busca e analytics
+- **Alertas via Mensageria**: Publica notificações template-based no Service Bus/RabbitMQ
+
+---
+
+## 🌐 API RESTful - Nível 3 (HATEOAS)
+
+### Richardson Maturity Model
+```
+Nível 3: HATEOAS     ← ✅ Esta API
+Nível 2: HTTP Verbs  ← ✅
+Nível 1: Resources   ← ✅
+Nível 0: POX         
 ```
 
-**Sem Partition Key (cross-partition):**
-```csharp
-// Usado apenas quando realmente necessário (ex: listagem geral)
-var query = new QueryDefinition("SELECT * FROM c ORDER BY c.receivedAt DESC");
+### Requisitos REST Implementados
+
+| Requisito | Descrição | Status | Padrão |
+|-----------|-----------|--------|--------|
+| **URIs substantivos** | Recursos com substantivos no plural | ✅ | `/field-measurements` |
+| **Hierarquia de URIs** | Relacionamentos claros | ✅ | `/field-measurements/field/{fieldId}` |
+| **HTTP Verbs** | GET, POST corretos | ✅ | Semântica HTTP |
+| **Idempotência** | GET idempotente | ✅ | RFC 7231 |
+| **Status Codes** | 2xx, 4xx, 5xx apropriados | ✅ | HTTP Standards |
+| **HATEOAS** | Links de navegação em respostas | ✅ | Richardson Level 3 |
+| **Versionamento** | URL versioning | ✅ | `/v1/` |
+| **Paginação** | Metadados + links navegação | ✅ | `page`, `pageSize` |
+| **Content Negotiation** | Accept/Content-Type headers | ✅ | `application/json` |
+| **Error Handling** | RFC 7807 Problem Details | ✅ | Padronizado |
+| **Stateless** | Sem estado no servidor | ✅ | JWT tokens |
+| **CORS** | Cross-Origin Resource Sharing | ✅ | Configurável |
+| **Correlation IDs** | Rastreamento distribuído | ✅ | `X-Correlation-ID` |
+
+### REST Constraints (Roy Fielding)
+
+| Constraint | Status |
+|-----------|--------|
+| Client-Server | ✅ Separação de responsabilidades |
+| Stateless | ✅ Sem sessão, requisições auto-contidas |
+| Cacheable | ✅ Headers de cache |
+| Layered System | ✅ Load Balancer → Gateway → API → CosmosDB |
+| Uniform Interface | ✅ URIs padronizadas, HATEOAS |
+| Code on Demand | ⚠️ Opcional (não implementado) |
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+AgroSolutions.Telemetry/
+│
+├── 📂 API/                          # Presentation Layer
+│   ├── Controllers/v1/                 # FieldMeasurementsController, HealthController
+│   ├── Middlewares/                    # Error, Logging, Security, Cache, ApiVersion
+│   ├── Configurations/                 # DI, Swagger, CORS, Auth, Versioning, Validation, Logging
+│   ├── Helpers/                        # HATEOAS Helper
+│   ├── Models/                         # ErrorResponse
+│   ├── Program.cs                      # Entry point (Serilog bootstrap)
+│   ├── appsettings.json                # Configurações de produção
+│   └── appsettings.Development.json    # Configurações de desenvolvimento
+│
+├── 📂 Application/                  # Use Cases
+│   ├── Services/                       # FieldMeasurementService, HealthCheckService, DomainEventDispatcher
+│   ├── Interfaces/                     # Contratos (IFieldMeasurementService, IMessagePublisher, IElasticService, etc.)
+│   ├── EventHandlers/                  # Handlers de análise (Drought, Irrigation, HeatStress, PestRisk, etc.)
+│   ├── Mappings/                       # Extensions de mapeamento FieldMeasurement ↔ DTO
+│   ├── DTO/                            # Request/Response DTOs (FieldMeasurement, Health, Notification, Common)
+│   ├── Exceptions/                     # ValidationException
+│   ├── Helpers/                        # DateTimeHelper
+│   └── Settings/                       # Configurações tipadas (Logger, Elastic, Alert, NewRelic)
+│
+├── 📂 Domain/                       # Core Business
+│   ├── Entities/                       # FieldMeasurement, RequestLog
+│   ├── Common/                         # BaseEntity, IHasDomainEvents
+│   ├── ValueObjects/                   # AnalysisResults (IrrigationRecommendation, DroughtCondition, etc.)
+│   ├── Events/                         # MeasurementCreatedEvent, IDomainEvent
+│   ├── Services/                       # Domain Services (DroughtDetection, HeatStressAnalysis, IrrigationRecommendation, PestRiskAnalysis)
+│   ├── Enums/                          # LogLevelEnum
+│   ├── Exceptions/                     # BusinessException
+│   └── Repositories/                   # IFieldMeasurementRepository
+│
+├── 📂 Infrastructure/               # External Concerns
+│   ├── Context/                        # CorrelationContext
+│   ├── Configurations/                 # CosmosSystemTextJsonSerializer
+│   ├── Repositories/                   # FieldMeasurementRepository (CosmosDB)
+│   ├── Factories/                      # MessagePublisherFactory (ServiceBus/RabbitMQ)
+│   └── Services/                       
+│       ├── Logging/                    # DatabaseLoggerService, ElasticLoggerService, NewRelicLoggerService
+│       ├── HealthCheck/                # CosmosDBHealthCheck, ElasticsearchHealthCheck, ServiceBusHealthCheck, SystemHealthCheck
+│       ├── Elastic/                    # ElasticService
+│       ├── ServiceBusPublisher.cs      # Azure Service Bus publisher
+│       └── RabbitMQPublisher.cs        # RabbitMQ publisher
+│
+├── 📂 Tests/                        # Tests Layer
+│   ├── UnitTests/                      
+│   │   ├── Domain/Entities/            # FieldMeasurementTests
+│   │   ├── Domain/Events/              # MeasurementCreatedEventTests
+│   │   ├── Application/EventHandlers/  # DroughtAnalysis, ExcessiveRainfall, ExtremeHeat, FreezingTemperature
+│   │   ├── Application/Mappings/       # FieldMeasurementMappingExtensionsTests
+│   │   └── Application/Helpers/        # DateTimeHelperTests
+│   ├── ArchitectureTests/              # LayerDependency, SolidPrinciples, NamingConvention, Security, Api, Performance, Testability
+│   ├── IntegrationTests/               # API Controllers, Security
+│   └── LoadTests/                      # k6 load testing (load-test.js)
+│
+├── 📂 docs/                         # Documentation
+│   ├── SOLID_Summary.md                # Análise SOLID detalhada
+│   ├── Architecture.drawio             # Diagramas de arquitetura
+│   └── README.md                       # Este arquivo
+│
+├── 📂 Kubernetes/                   # Kubernetes manifests
+│   ├── deployment.yaml                 # Deployment do microserviço
+│   ├── service.yaml                    # Service (ClusterIP/LoadBalancer)
+│   ├── hpa.yaml                        # Horizontal Pod Autoscaler
+│   ├── configmap.yaml                  # ConfigMap
+│   ├── secret.yaml                     # Secrets
+│   ├── namespace.yaml                  # Namespace
+│   └── AzureAKS_script.txt            # Scripts auxiliares AKS
+│
+├── 📂 .github/                      # GitHub workflows
+│   └── workflows/ci-cd-aks.yml        # CI/CD para AKS
+│
+├── .gitignore                       # Arquivos ignorados pelo Git
+├── Dockerfile                       # Imagem Docker da API (multi-stage, Alpine)
+└── AgroSolutions.Telemetry.sln      # Solution .NET
 ```
 
-#### ✅ 4. Retry Policy Automático
+---
 
+## ✨ Funcionalidades Principais
+
+### 🔹 Ingestão de Telemetria (Field Measurements)
+- Recepção de medições de sensores (umidade do solo, temperatura do ar, precipitação)
+- Validações de negócio (ranges, campos obrigatórios, e-mail de alerta)
+- Persistência em Azure CosmosDB (Serverless, partition key: `/fieldId`)
+- Links HATEOAS para navegação entre recursos
+- Paginação com metadados
+
+### 🔹 Análises Inteligentes (Domain Events)
+- **Detecção de Seca**: Análise de umidade do solo abaixo do threshold por período contínuo
+- **Recomendação de Irrigação**: Cálculo de urgência (None/Low/Medium/High) e volume de água (mm)
+- **Estresse Térmico**: Detecção de condições de calor prejudiciais
+- **Risco de Pragas**: Avaliação de condições favoráveis à proliferação
+- **Chuva Excessiva**: Monitoramento de precipitação acima dos limites
+- **Calor Extremo**: Alerta sobre temperaturas extremas
+- **Congelamento**: Alerta sobre temperaturas de congelamento
+
+### 🔹 Mensageria e Notificações
+- **Factory Pattern**: Seleção dinâmica entre ServiceBus e RabbitMQ
+- **Template-based Notifications**: Alertas com templates parametrizados (TemplateId + Parameters)
+- **Prioridade**: Low, Normal, High, Critical
+
+### 🔹 Observabilidade
+- **Logging multi-destino:** Database, Elasticsearch, New Relic (via Serilog)
+- **Correlation IDs:** Rastreamento distribuído
+- **Elastic APM:** Monitoramento de performance e tracing
+- **Structured Logs:** Serilog com contexto completo
+
+### 🔹 Health Checks Dinâmicos
+- **Auto-discovery** via `IEnumerable<IHealthCheck>`
+- **Checks:** CosmosDB, Elasticsearch, Service Bus, System
+- **Extensível:** Adicione novo check sem modificar código existente
+
+### 🔹 Segurança
+- JWT Bearer Authentication
+- Security Headers (HSTS, CSP, X-Frame-Options)
+- CORS configurável
+
+---
+
+## 🎯 Princípios SOLID
+
+### Resumo
+
+| Princípio | Aplicação |
+|-----------|-----------|
+| **S** - Single Responsibility | Cada classe tem 1 responsabilidade (FieldMeasurementService orquestra, Event Handlers analisam, Domain Services calculam) |
+| **O** - Open/Closed | Extensível sem modificar (novo Event Handler → registra no DI; novo Publisher → adiciona case na Factory) |
+| **L** - Liskov Substitution | ILoggerService → Database/Elastic/NewRelic substituíveis; IMessagePublisher → ServiceBus/RabbitMQ substituíveis |
+| **I** - Interface Segregation | Interfaces coesas (IFieldMeasurementRepository, IMessagePublisher, IElasticService, IHealthCheck) |
+| **D** - Dependency Inversion | Depende de abstrações, não implementações (Repository no Domain, implementação na Infrastructure) |
+
+### Exemplos Práticos
+
+**Adicionar novo Event Handler de análise:**
 ```csharp
-new CosmosClient(connectionString, new CosmosClientOptions
+// 1. Implementar interface
+public class NewAnalysisEventHandler : IDomainEventHandler<MeasurementCreatedEvent>
 {
-    MaxRetryAttemptsOnRateLimitedRequests = 9,
-    MaxRetryWaitTimeOnRateLimitedRequests = TimeSpan.FromSeconds(30)
-});
-```
-
-#### ✅ 5. Monitoramento de RU (Request Units)
-
-```csharp
-_logger.LogInformation(
-    "Measurement saved. RU consumed: {RU}",
-    response.RequestCharge);
-```
-
-### Entity Framework vs CosmosDB SDK
-
-**Por que NÃO usar EF Core para CosmosDB?**
-
-❌ **Entity Framework Core (Provider CosmosDB)**
-- Abstração pesada para NoSQL
-- Migrations não fazem sentido (schema-less)
-- Performance inferior
-- Limitações em queries complexas
-
-✅ **CosmosDB SDK Direto** (Implementado)
-- Performance otimizada
-- Controle total sobre RUs
-- Queries SQL nativas
-- Suporte completo a recursos do CosmosDB
-
-## 🚨 Sistema de Alertas
-
-### Regra de Negócio
-
-**Condição de Seca:**
-- Umidade do solo < 30%
-- Persistindo por mais de 24 horas
-- Baseado em timestamp `collectedAt`
-
-### Fluxo de Alerta
-
-1. **Nova medição recebida** → `AddMeasurementAsync()`
-2. **Verificação automática** → `CheckDroughtConditionsAsync()`
-3. **Consulta histórico 24h** → `GetByFieldIdAndDateRangeAsync()`
-4. **Todas medições < 30%?** → Sim
-5. **Dispara evento** → `DroughtAlertRequiredEvent`
-6. **Event Handler** → `DroughtAlertRequiredEventHandler`
-7. **Publica no Service Bus** → Fila `alert-required-queue`
-
-### Mensagem de Alerta
-
-```json
-{
-  "alertType": "DroughtCondition",
-  "fieldId": "guid",
-  "currentSoilMoisture": 25.5,
-  "firstLowMoistureDetected": "2025-01-15T10:00:00Z",
-  "detectedAt": "2025-01-16T11:30:00Z",
-  "severity": "High",
-  "message": "Alerta de Seca: Campo xxx com umidade abaixo de 30% por mais de 24 horas."
+    public async Task HandleAsync(MeasurementCreatedEvent domainEvent) { ... }
 }
+
+// 2. Registrar no DI
+builder.Services.AddScoped<IDomainEventHandler<MeasurementCreatedEvent>, NewAnalysisEventHandler>();
+
+// ✅ DomainEventDispatcher descobre e executa automaticamente!
 ```
 
-## 🔧 Configuração Inicial
+**Adicionar novo Health Check:**
+```csharp
+// 1. Implementar interface
+public class RedisHealthCheck : IHealthCheck
+{
+    public string ComponentName => "Redis";
+    public bool IsCritical => false;
+    public Task<ComponentHealth> CheckHealthAsync() { ... }
+}
 
-### 1. Restaurar Pacotes
+// 2. Registrar no DI
+builder.Services.AddScoped<IHealthCheck, RedisHealthCheck>();
+
+// ✅ HealthCheckService descobre automaticamente!
+```
+
+**Trocar Logger:**
+```csharp
+// Apenas alterar configuração
+"LoggerSettings": { "Provider": "Elastic" }  // ou "Database", "NewRelic"
+
+// Código cliente não muda! (Dependency Inversion)
+```
+
+📚 **Documentação completa:** `docs/SOLID_Summary.md`
+
+---
+
+## 🛠️ Tecnologias
+
+**Core:** .NET 8, C# 12, ASP.NET Core 8  
+**Persistência:** Azure CosmosDB (Serverless, SDK v3)  
+**Mensageria:** Azure Service Bus, RabbitMQ  
+**Logging:** Serilog (Elasticsearch, SQL Server, New Relic)  
+**APM:** Elastic APM  
+**Auth:** JWT Bearer Authentication  
+**Testes:** xUnit, Moq, FluentAssertions, NetArchTest, k6  
+**Infra:** Docker (Alpine), Kubernetes (AKS), GitHub Actions  
+**Documentação:** Swagger/OpenAPI 3.0  
+
+---
+
+## 🚀 CI/CD
+
+### Pipeline Automatizado (GitHub Actions → AKS)
+
+A aplicação possui pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd-aks.yml`) com:
+- Build e restauração de dependências
+- Execução de testes (Architecture, Unit, Integration) + Code Coverage
+- Build e push de imagem Docker no Azure Container Registry (ACR)
+- Deploy no Azure Kubernetes Service (AKS)
+
+---
+
+## 🚀 Setup Rápido
 
 ```bash
+# 1. Clonar
+git clone https://github.com/fkwesley/AgroSolutions.Telemetry.git
+cd AgroSolutions.Telemetry
+
+# 2. Restaurar dependências
 dotnet restore
-```
 
-### 2. Configurar CosmosDB
-
-1. Criar conta CosmosDB no Azure Portal
-2. Copiar Connection String
-3. Atualizar `appsettings.json`
-
-### 3. Configurar Service Bus
-
-1. Criar namespace do Service Bus
-2. Criar fila `alert-required-queue`
-3. Copiar Connection String
-4. Atualizar `appsettings.json`
-
-### 4. Executar
-
-```bash
-dotnet run --project API
-```
-
-## 📡 Endpoints
-
-### POST `/v1/field-measurements`
-
-Adiciona nova medição de telemetria.
-
-**Headers:**
-```
-Authorization: Bearer {jwt_token}
-```
-
-**Request:**
-```json
-{
-  "fieldId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "soilMoisture": 45.5,
-  "airTemperature": 28.3,
-  "precipitation": 12.7,
-  "collectedAt": "2025-01-16T10:30:00Z"
+# 3. Configurar conexões (appsettings.Development.json)
+"ConnectionStrings": {
+  "TelemetryDbConnection": "<CosmosDB connection string>",
+  "ServiceBusConnection": "<Service Bus connection string>"
 }
+
+# 4. Executar
+cd API
+dotnet run
+
+# ✅ API disponível em: https://localhost:5001/swagger
 ```
 
-**Observação:** O `userId` é extraído automaticamente do token JWT (claim `user_id`).
-
-**Response:** `201 Created`
-```json
-{
-  "id": "7b8c9d1e-2f3a-4b5c-6d7e-8f9a0b1c2d3e",
-  "fieldId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "soilMoisture": 45.5,
-  "airTemperature": 28.3,
-  "precipitation": 12.7,
-  "collectedAt": "2025-01-16T10:30:00Z",
-  "receivedAt": "2025-01-16T10:31:05Z",
-  "userId": "user-abc-123"
-}
-```
-
-### GET `/v1/field-measurements/{id}`
-
-Retorna medição específica.
-
-### GET `/v1/field-measurements/field/{fieldId}`
-
-Retorna todas medições de um campo.
-
-### GET `/v1/field-measurements?page=1&pageSize=10`
-
-Retorna medições paginadas.
+---
 
 ## 🧪 Testes
 
-### Executar Testes Unitários
+### Pirâmide de Testes
+```
+      /\
+     /E2E\        ← 5% (críticos)
+    /------\
+   / Integr \     ← 20% (API, Security)
+  /----------\
+ /Unit Tests  \   ← 70% (Entities, EventHandlers, Mappings, Helpers)
+/______________\
+  + Architecture  ← 5% (Layers, SOLID, Naming, Security, API Design, Performance, Testability)
+```
 
+### Executar
 ```bash
-dotnet test
+dotnet test                                                          # Todos
+dotnet test --filter "FullyQualifiedName~UnitTests"                 # Unitários
+dotnet test --filter "FullyQualifiedName~IntegrationTests"          # Integração
+dotnet test --filter "FullyQualifiedName~ArchitectureTests"         # Arquitetura
+k6 run Tests/LoadTests/load-test.js                                  # Carga
 ```
 
-### Cobertura
-
-- ✅ Testes de entidade (validações de domínio)
-- ✅ Testes de mapeamento (DTOs)
-- ✅ Testes de serviço (regras de negócio)
-- ✅ Testes de integração (repositório)
-
-## 🔐 Segurança
-
-- **Autenticação**: JWT Bearer Token
-- **Autorização**: `[Authorize]` em todos os endpoints
-- **Validação**: DTOs com DataAnnotations
-- **Exceções tratadas**: Middleware global de erro
-
-## 📈 Monitoramento
-
-### Logs Estruturados (Serilog -> Elasticsearch)
-
-Todos os logs da aplicação são enviados automaticamente para **Elasticsearch** via Serilog.
-
-**Configuração:**
-```json
-{
-  "LoggerSettings": {
-    "Provider": "Elastic",
-    "ServiceName": "agrosolutions-telemetry-api"
-  },
-  "ElasticLogs": {
-    "Endpoint": "https://your-elastic-cloud.elastic-cloud.com",
-    "ApiKey": "your-api-key",
-    "IndexPrefix": "agro"
-  }
-}
-```
-
-**Logs Capturados:**
-- 📊 Requisições HTTP (método, path, status, duração)
-- 🔍 Performance de queries CosmosDB (RU consumption)
-- ⚠️ Alertas de seca detectados
-- ❌ Erros e exceções com stack trace
-- 👤 Informações de usuário (do token JWT)
-
-**Exemplo de Log:**
+### Arquitetura (NetArchTest)
 ```csharp
-_logger.LogInformation(
-    "Measurement {MeasurementId} saved for field {FieldId}. SoilMoisture: {SoilMoisture}%. RU consumed: {RU}",
-    id, fieldId, moisture, ruConsumed);
+// Valida Clean Architecture
+Types.InAssembly(domainAssembly)
+    .ShouldNot().HaveDependencyOn("Infrastructure")
+    .GetResult().IsSuccessful.Should().BeTrue();
 ```
-
-**Consultar logs no Kibana:**
-```
-GET agro-logs-*/_search
-{
-  "query": {
-    "bool": {
-      "must": [
-        { "match": { "serviceName": "agrosolutions-telemetry-api" } },
-        { "range": { "@timestamp": { "gte": "now-24h" } } }
-      ]
-    }
-  }
-}
-```
-
-### Elastic APM
-
-Rastreamento distribuído e monitoramento de performance configurado no `appsettings.json`:
-
-```json
-{
-  "ElasticApm": {
-    "Enabled": true,
-    "ServerUrl": "https://your-apm.elastic-cloud.com:443",
-    "SecretToken": "your-token",
-    "ServiceName": "agrosolutions-telemetry-api",
-    "Environment": "Production"
-  }
-}
-```
-
-**Métricas Capturadas:**
-- ⏱️ Tempo de resposta de endpoints
-- 🎯 Taxa de erro (4xx, 5xx)
-- 📊 Throughput (requisições/segundo)
-- 💾 Consumo de memória e CPU
-- 🌐 Distributed tracing (correlação de requisições)
-
-## 🚀 Próximos Passos
-
-1. **Adicionar mais tipos de alerta**: Temperatura extrema, falta de precipitação
-2. **Dashboard de visualização**: Grafana/PowerBI
-3. **Machine Learning**: Previsão de necessidade de irrigação
-4. **Cache**: Redis para queries frequentes
-5. **CDC (Change Data Capture)**: CosmosDB Change Feed para processamento em tempo real
-
-## 📚 Referências
-
-- [Azure CosmosDB Best Practices](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/best-practice-dotnet)
-- [Partition Key Design](https://learn.microsoft.com/en-us/azure/cosmos-db/partitioning-overview)
-- [Service Bus Messaging](https://learn.microsoft.com/en-us/azure/service-bus-messaging/)
 
 ---
 
