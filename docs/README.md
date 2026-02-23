@@ -48,23 +48,7 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
     - Microserviço para gestão de úsuários e autenticação JWT (banco SQL)
     - Microserviço para gestão de fazendas, talhões e safras (banco SQL)
     - Microserviço para injestão dos dados dos sensores (banco NoSQL - Requisito Opcional)
-    - Funções Serverless para coleta de dados dos sensores (integração api de previsão do tempo - Requisito Opcional) 
-  - **Orquestração com Kubernetes**
-    - Imagens Docker otimizadas para .NET 8 (Alpine) 
-    - Armazenamento das imagens no Azure Container Registry (ACR)
-    - Microserviços hospedados em Azure Kubernetes Services (AKS)   
-    - Manifestos Kubernetes para deploy, service, hpa, configMap e secrets
-  - **Observabilidade**
-    - Elastic APM para monitoramento de performance e rastreamento distribuído
-    - Elasticsearch para armazenamento e análise de logs estruturados
-    - Kibana para dashboards
-  - **Mensageria**
-    - ServiceBus para comunicação assíncrona entre microserviços
-    - Azure Functions (Queue trigger) para processamento de mensagens em tempo real (componente Serverless - Requisito Opcional)
-    - Azure Functions (Timer trigger) para coleta de dados dos sensores a cada hora (componente Serverless - Requisito Opcional)
-  - **CI/CD Automatizado**
-    - Github Actions para build, testes, build de imagem Docker e deploy no AKS
-    - Stages de DEV, STAGING e PROD com aprovações manuais para deploy em produção
+    - Funções Serverless para coleta de dados dos sensores (integração api de previsão do tempo - Requisito Opcional)
   - **Adoção das melhores práticas de arquitetura e dev**
     - Clean Architecture (Onion Architecture)
     - API RESTful Level 3 (HATEOAS completo)
@@ -74,6 +58,22 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
     - Health Checks dinâmicos
     - Observabilidade completa (Logs estruturados, Correlation IDs)
     - Testes em 4 camadas (Unit, Integration, Architecture, Load)
+  - **Orquestração com Kubernetes**
+    - Imagens Docker otimizadas para .NET 8 (Alpine) 
+    - Armazenamento das imagens no Azure Container Registry (ACR)
+    - Microserviços hospedados em Azure Kubernetes Services (AKS)   
+    - Manifestos Kubernetes para deploy, service, hpa, configMap e secrets
+  - **Mensageria**
+    - ServiceBus para comunicação assíncrona entre microserviços
+    - Azure Functions (Queue trigger) para processamento de mensagens em tempo real (componente Serverless - Requisito Opcional)
+    - Azure Functions (Timer trigger) para coleta de dados dos sensores a cada hora (componente Serverless - Requisito Opcional)
+  - **CI/CD Automatizado**
+    - Github Actions para build, testes, build de imagem Docker e deploy no AKS
+    - Stages de DEV, STAGING e PROD com aprovações manuais para deploy em produção
+  - **Observabilidade**
+    - Elastic APM para monitoramento de performance e rastreamento distribuído
+    - Elasticsearch para armazenamento e análise de logs estruturados
+    - Kibana para dashboards
 
 ---
 
