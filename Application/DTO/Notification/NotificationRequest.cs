@@ -17,7 +17,7 @@ namespace Application.DTO.Alerts
         Low,
         Normal,
         High,
-        Critical
+        Urgent
     }
 
     public class NotificationRequest

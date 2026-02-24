@@ -62,7 +62,7 @@ namespace Application.EventHandlers
                             { "{threshold}", _settings.Threshold.ToString("F1") },
                             { "{excess}", excess.ToString("F1") },
                             { "{percentAbove}", percentAbove.ToString("F1") },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
                         Priority = PriorityEnum.High,

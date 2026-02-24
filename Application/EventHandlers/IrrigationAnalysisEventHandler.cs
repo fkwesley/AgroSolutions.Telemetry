@@ -99,12 +99,12 @@ namespace Application.EventHandlers
                             { "{estimatedDurationMinutes}", recommendation.EstimatedDuration.TotalMinutes.ToString("F0") },
                             { "{soilWaterCapacity}", _settings.SoilWaterCapacity.ToString() },
                             { "{historyDays}", _settings.HistoryDays.ToString() },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
                         Priority = recommendation.Urgency switch
                         {
-                            Domain.ValueObjects.IrrigationUrgencyEnum.Critical => PriorityEnum.Critical,
+                            Domain.ValueObjects.IrrigationUrgencyEnum.Critical => PriorityEnum.Urgent,
                             Domain.ValueObjects.IrrigationUrgencyEnum.High => PriorityEnum.High,
                             Domain.ValueObjects.IrrigationUrgencyEnum.Medium => PriorityEnum.Normal,
                             Domain.ValueObjects.IrrigationUrgencyEnum.Low => PriorityEnum.Low,

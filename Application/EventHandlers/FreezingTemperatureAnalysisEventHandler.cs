@@ -60,10 +60,10 @@ namespace Application.EventHandlers
                             { "{airTemperature}", measurement.AirTemperature.ToString("F1") },
                             { "{threshold}", _settings.Threshold.ToString("F1") },
                             { "{temperatureBelowThreshold}", temperatureBelowThreshold.ToString("F1") },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Priority = PriorityEnum.Critical
+                        Priority = PriorityEnum.Urgent
                     };
 
                     // Prepare custom properties for Service Bus: only CorrelationId and traceparent
