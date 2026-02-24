@@ -85,10 +85,10 @@ namespace Application.EventHandlers
                             { "{historyHours}", _settings.HistoryHours.ToString() },
                             { "{criticalTemperature}", _settings.CriticalTemperature.ToString("F1") },
                             { "{minimumDurationHours}", _settings.MinimumDurationHours.ToString() },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Priority = heatStress.Level == Domain.ValueObjects.HeatStressLevelEnum.Severe ? PriorityEnum.Critical : PriorityEnum.High
+                        Priority = heatStress.Level == Domain.ValueObjects.HeatStressLevelEnum.Severe ? PriorityEnum.Urgent : PriorityEnum.High
                     };
 
                     // Prepare custom properties for Service Bus: only CorrelationId and traceparent

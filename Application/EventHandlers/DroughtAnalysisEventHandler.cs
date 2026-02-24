@@ -85,12 +85,12 @@ namespace Application.EventHandlers
                             { "{durationHours}", drought.DurationInHours.ToString("F1") },
                             { "{durationDays}", durationDays.ToString("F1") },
                             { "{firstLowMoistureDetected}", DateTimeHelper.ConvertUtcToTimeZone(drought.StartTime, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{historyDays}", _settings.HistoryDays.ToString() },
                             { "{minimumDurationHours}", _settings.MinimumDurationHours.ToString() },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
-                        Priority = PriorityEnum.Critical
+                        Priority = PriorityEnum.Urgent
                     };
 
                     // Prepare custom properties for Service Bus: only CorrelationId and traceparent

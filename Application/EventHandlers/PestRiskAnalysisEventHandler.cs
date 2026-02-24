@@ -92,7 +92,7 @@ namespace Application.EventHandlers
                             { "{maxTemperature}", _settings.MaxTemperature.ToString("F1") },
                             { "{minMoisture}", _settings.MinMoisture.ToString("F1") },
                             { "{minimumFavorableDays}", _settings.MinimumFavorableDays.ToString() },
-                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") + " (Horário de São Paulo)" },
+                            { "{detectedAt}", DateTimeHelper.ConvertUtcToTimeZone(DateTime.UtcNow, "E. South America Standard Time").ToString("dd/MM/yyyy HH:mm:ss") },
                             { "{correlationId}", _correlationContext.CorrelationId?.ToString() ?? Guid.NewGuid().ToString() }
                         },
                         Priority = pestRisk.RiskLevel == PestRiskLevelEnum.High || pestRisk.RiskLevel == PestRiskLevelEnum.Critical ? PriorityEnum.High : PriorityEnum.Normal
