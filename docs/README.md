@@ -10,22 +10,22 @@
 
 ## 📋 Índice
 
-- [Visão Geral](#-visão-geral)
-- [Arquitetura](#-arquitetura)
-- [Funcionalidades](#-funcionalidades)
-- [API RESTful - Nível 3](#-api-restful---nível-3)
-- [Estrutura do Projeto](#-estrutura-do-projeto)
-- [Princípios SOLID](#-princípios-solid)
-- [Tecnologias](#-tecnologias)
-- [CI/CD](#-cicd)
-- [Setup Rápido](#-setup-rápido)
-- [Testes](#-testes)
+- [Visão Geral](#visao-geral)
+- [Arquitetura](#arquitetura)
+- [Funcionalidades](#funcionalidades)
+- [API RESTful - Nível 3](#api-restful-nivel-3)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Princípios SOLID](#principios-solid)
+- [Tecnologias](#tecnologias)
+- [CI/CD](#cicd)
+- [Setup Rápido](#setup-rapido)
+- [Testes](#testes)
 
 ---
 
-## 🎯 Visão Geral
+## <a id="visao-geral"></a>🎯 Visão Geral
 
-Microserviço responsável pela ingestão de dados de sensores agrícolas (umidade do solo, temperatura do ar, precipitação), persistência em Azure CosmosDB e processamento de análises inteligentes com publicação de alertas via mensageria.
+Microserviço responsável
 
 ### 🌟 Destaques
 
@@ -78,9 +78,9 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
 
 ---
 
-## 🏗️ Arquitetura
+## <a id="arquitetura"></a>🏗️ Arquitetura
 
-### Clean Architecture (Onion)
+### Clean
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -139,9 +139,9 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
 
 ---
 
-## 🌾 Funcionalidades
+## <a id="funcionalidades"></a>🌾 Funcionalidades
 
-- **Recepção de Telemetria**: Recebe dados de sensores (umidade do solo, temperatura do ar, precipitação)
+- **Recepção
 - **Armazenamento CosmosDB**: Persiste dados em banco NoSQL Serverless otimizado para IoT (partition key: `/fieldId`)
 - **Análise de Seca**: Detecta condições de seca prolongada (umidade abaixo do threshold por período contínuo)
 - **Recomendação de Irrigação**: Calcula urgência e quantidade de água necessária com base nas condições do solo
@@ -155,9 +155,9 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
 
 ---
 
-## 🌐 API RESTful - Nível 3 (HATEOAS)
+## <a id="api-restful-nivel-3"></a>🌐 API RESTful - Nível 3 (HATEOAS)
 
-### Richardson Maturity Model
+### Richardson
 ```
 Nível 3: HATEOAS     ← ✅ Esta API
 Nível 2: HTTP Verbs  ← ✅
@@ -196,7 +196,7 @@ Nível 0: POX
 
 ---
 
-## 📁 Estrutura do Projeto
+## <a id="estrutura-do-projeto"></a>📁 Estrutura do Projeto
 
 ```
 AgroSolutions.Telemetry/
@@ -321,7 +321,7 @@ AgroSolutions.Telemetry/
 
 ---
 
-## 🎯 Princípios SOLID
+## <a id="principios-solid"></a>🎯 Princípios SOLID
 
 ### Resumo
 
@@ -377,9 +377,9 @@ builder.Services.AddScoped<IHealthCheck, RedisHealthCheck>();
 
 ---
 
-## 🛠️ Tecnologias
+## <a id="tecnologias"></a>🛠️ Tecnologias
 
-**Core:** .NET 8, C# 12, ASP.NET Core 8  
+**Core:**
 **Persistência:** Azure CosmosDB (Serverless, SDK v3)  
 **Mensageria:** Azure Service Bus, RabbitMQ  
 **Logging:** Serilog (Elasticsearch, SQL Server, New Relic)  
@@ -392,9 +392,9 @@ builder.Services.AddScoped<IHealthCheck, RedisHealthCheck>();
 
 ---
 
-## 🚀 CI/CD
+## <a id="cicd"></a>🚀 CI/CD
 
-### Pipeline Automatizado (GitHub Actions → AKS)
+### Pipeline
 
 A aplicação possui pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd-aks.yml`) com:
 - Build e restauração de dependências
@@ -404,7 +404,7 @@ A aplicação possui pipeline CI/CD via GitHub Actions (`.github/workflows/ci-cd
 
 ---
 
-## 🚀 Setup Rápido
+## <a id="setup-rapido"></a>🚀 Setup Rápido
 
 ```bash
 # 1. Clonar
@@ -436,9 +436,9 @@ dotnet run
 
 ---
 
-## 🧪 Testes
+## <a id="testes"></a>🧪 Testes
 
-### Pirâmide de Testes
+### Pirâmide
 ```
       /\
      /E2E\        ← 5% (críticos)
