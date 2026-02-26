@@ -18,3 +18,6 @@ data:
   Jwt__Issuer: "${JWT_ISSUER}"
 
   CosmosDb__DatabaseId: "${COSMOSDB_DATABASE_ID}"
+
+  KeyVault__VaultUri: "${KEYVAULT_URI}"
+  KeyVault__Enabled: "${KEYVAULT_ENABLED}"

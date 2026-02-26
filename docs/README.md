@@ -37,6 +37,7 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
 - ✅ **Domain Services** para regras de negócio complexas
 - ✅ **Azure CosmosDB** (Serverless) para persistência NoSQL otimizada para IoT
 - ✅ **Mensageria** via Service Bus e RabbitMQ (Factory Pattern)
+- ✅ **Azure Key Vault** para gestão centralizada de segredos com hierarquia de configuração
 - ✅ **Health Checks** dinâmicos com auto-discovery
 - ✅ **Observabilidade completa** (Logs estruturados, Correlation IDs, Elastic APM)
 - ✅ **Testes em 4 camadas** (Unit, Integration, Architecture, Load)
@@ -128,6 +129,7 @@ Microserviço responsável pela ingestão de dados de sensores agrícolas (umida
 - **Domain Services**: Lógica de negócio complexa (DroughtDetection, HeatStressAnalysis, IrrigationRecommendation, PestRiskAnalysis)
 - **Repository Pattern**: Abstração de acesso a dados (CosmosDB)
 - **Factory Pattern**: Seleção dinâmica de publisher de mensageria (ServiceBus/RabbitMQ)
+- **Configuration Hierarchy**: Azure Key Vault > Environment Variables > appsettings.{env}.json > appsettings.json
 
 **Benefícios:**
 - ✅ Domain independente de infraestrutura
@@ -311,6 +313,8 @@ AgroSolutions.Telemetry/
 - **Extensível:** Adicione novo check sem modificar código existente
 
 ### 🔹 Segurança
+- **Azure Key Vault**: Gestão centralizada de segredos (connection strings, tokens, API keys) com integração nativa via `Azure.Extensions.AspNetCore.Configuration.Secrets`. Hierarquia de configuração com prioridade: KeyVault > Environment Variables > appsettings.{env}.json > appsettings.json
+- **Diagnóstico de Configuração**: Log estruturado no startup identificando a origem de cada configuração (KeyVault, EnvVar, JSON) via `ConfigurationSourceLogger`
 - JWT Bearer Authentication
 - Security Headers (HSTS, CSP, X-Frame-Options)
 - CORS configurável
@@ -380,6 +384,7 @@ builder.Services.AddScoped<IHealthCheck, RedisHealthCheck>();
 **Mensageria:** Azure Service Bus, RabbitMQ  
 **Logging:** Serilog (Elasticsearch, SQL Server, New Relic)  
 **APM:** Elastic APM  
+**Segredos:** Azure Key Vault  
 **Auth:** JWT Bearer Authentication  
 **Testes:** xUnit, Moq, FluentAssertions, NetArchTest, k6  
 **Infra:** Docker (Alpine), Kubernetes (AKS), GitHub Actions  
@@ -414,6 +419,13 @@ dotnet restore
   "TelemetryDbConnection": "<CosmosDB connection string>",
   "ServiceBusConnection": "<Service Bus connection string>"
 }
+
+# 3.1 (Opcional) Habilitar Azure Key Vault
+"KeyVault": {
+  "VaultUri": "https://<seu-vault>.vault.azure.net/",
+  "Enabled": "true"
+}
+# Quando habilitado, segredos do Key Vault sobrescrevem valores locais automaticamente.
 
 # 4. Executar
 cd API
