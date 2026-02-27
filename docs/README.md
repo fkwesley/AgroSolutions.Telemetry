@@ -1,5 +1,7 @@
 ﻿# 🌾 AgroSolutions.Telemetry API - Hackaton FIAP
 
+> [Vídeo de Apresentação](https://youtu.be/gQLOlJ2EWxc)
+
 > API RESTful para recebimento e processamento de dados de telemetria de sensores de campo agrícola, com análises inteligentes e alertas automatizados.
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
